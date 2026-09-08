@@ -1,0 +1,15 @@
+{
+  "name": "auto-log-task-blueprint",
+  "version": "1.0.0",
+  "description": "Tu dong log Task tu monthly-report.md len he thong Blueprint (CyberLogitec) bang Playwright",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "parse": "node index.js --dry-run",
+    "start": "node index.js"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "playwright": "^1.48.0"
+  }
+}
