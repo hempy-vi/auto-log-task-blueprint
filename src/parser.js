@@ -136,8 +136,9 @@ function parseRegularTicketBlock(blockLines, siteFromHeader) {
     }
   }
 
-  // ⚠️ `site` PHẢI lấy từ dòng "RELATED UI:" (Title Case, khớp bảng PIC ở
-  // config.js) — KHÔNG lấy từ dòng "🟢 Dự án:" (ALL CAPS). Xem WORKFLOW.md mục 1.
+  // ⚠️ `site` PHẢI lấy từ dòng "RELATED UI:" (Title Case, khớp tên hiển thị
+  // Site thật trên Blueprint) — KHÔNG lấy từ dòng "🟢 Dự án:" (ALL CAPS). Xem
+  // WORKFLOW.md mục 1.
   let site = siteFromHeader;
   let jobType = '';
   for (const line of blockLines) {

@@ -1,34 +1,4 @@
 // Cấu hình nghiệp vụ cố định — tham khảo WORKFLOW.md mục 1.
-// Chỉ gồm các site Huy đang thực sự làm, KHÔNG phải toàn bộ site công ty.
-const SITE_CONFIRMATION_PIC = {
-  'BK Vina': 'Le Nguyen Thi Ai',
-  Shinwoo: 'Le Nguyen Thi Ai',
-  Chunshin: 'Le Nguyen Thi Ai',
-
-  'Lotte Global Logistics': 'Hien Tang',
-  Hiknit: 'Hien Tang',
-  'Samil Textile': 'Hien Tang',
-  Samil: 'Hien Tang',
-  'Posco HN': 'Hien Tang',
-  Samjin: 'Hien Tang',
-  'Dongil Rubber': 'Hien Tang',
-  Dongil: 'Hien Tang',
-  'Kolon BD': 'Hien Tang',
-  'Kolon Ind': 'Hien Tang',
-  'AJ Total': 'Hien Tang',
-  'AJ Pho Noi': 'Hien Tang',
-  'AJ DN Cold': 'Hien Tang',
-
-  'Yujin Kreves': 'Thanh Dinh Thi Thanh',
-  Yujin: 'Thanh Dinh Thi Thanh',
-  'OT Motor': 'Thanh Dinh Thi Thanh',
-  Kukil: 'Thanh Dinh Thi Thanh',
-  Kyungbang: 'Thanh Dinh Thi Thanh',
-  'Daewon Chemical': 'Thanh Dinh Thi Thanh',
-  'ENS Foam': 'Thanh Dinh Thi Thanh',
-
-  SIENC: 'Hien Tang',
-};
 
 // Tên đầy đủ của người ĐANG DÙNG tool này — mặc định "Huy Quoc Nguyen" (máy
 // hiện tại), nhưng có thể đổi mà KHÔNG cần sửa code: set biến môi trường
@@ -38,9 +8,11 @@ const CURRENT_USER_FULL_NAME = process.env.BLUEPRINT_FULL_NAME || 'Huy Quoc Nguy
 
 const PHASE_PIC = {
   register: CURRENT_USER_FULL_NAME, // luôn là chính user đang thao tác, script không cần set
+  // Theo yêu cầu nghiệp vụ mới: Confirmation 100% là dev lead "Giau Doan" cho
+  // MỌI site (thay cho bảng BC phụ trách theo từng site trước đây).
+  confirmation: 'Giau Doan',
   solving: CURRENT_USER_FULL_NAME,
   finish: 'Phu Le',
-  // confirmation: tra theo SITE_CONFIRMATION_PIC, không có giá trị cố định
 };
 
 // Vị trí (1-based) của mỗi phase trong panel Phase/PIC — ĐÃ XÁC NHẬN qua
@@ -96,23 +68,9 @@ function getCredentials() {
   return { username, password };
 }
 
-// Tra theo tên site KHÔNG phân biệt hoa/thường (nhưng vẫn phải khớp CHÍNH
-// XÁC toàn bộ tên, không phải substring) — báo cáo tháng do người gõ tay,
-// dễ lệch case (vd "kolon ind" thay vì "Kolon Ind") mà vẫn là đúng site đó.
-const SITE_CONFIRMATION_PIC_LOWER = Object.fromEntries(
-  Object.entries(SITE_CONFIRMATION_PIC).map(([site, pic]) => [site.toLowerCase(), pic])
-);
-
-function getConfirmationPic(site) {
-  if (!site) return null;
-  return SITE_CONFIRMATION_PIC_LOWER[site.trim().toLowerCase()] || null;
-}
-
 module.exports = {
-  SITE_CONFIRMATION_PIC,
   PHASE_PIC,
   PHASE_INDEX,
   CONSTANTS,
-  getConfirmationPic,
   getCredentials,
 };

@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<title>Auto Log Task Blueprint</title>
+<style>
+  :root {
+    --ink: #eaf2ff;
+    --sub: #9db4d9;
+    --accent: #4fa6ff;
+    --accent-2: #7c5cff;
+    --line: rgba(140, 180, 255, 0.16);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: radial-gradient(1200px 800px at 15% 10%, #132349 0%, transparent 60%),
+                radial-gradient(1000px 700px at 85% 90%, #1a1440 0%, transparent 55%),
+                linear-gradient(160deg, #060a16 0%, #0a1226 45%, #0b1730 100%);
+    color: var(--ink);
+    font-family: "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  }
+
+  /* Lưới bản vẽ kỹ thuật (blueprint grid) làm nền, tôn đúng chủ đề "Blueprint" */
+  .grid {
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 46px 46px;
+    -webkit-mask-image: radial-gradient(1100px 720px at 50% 42%, black 40%, transparent 78%);
+            mask-image: radial-gradient(1100px 720px at 50% 42%, black 40%, transparent 78%);
+    animation: drift 26s linear infinite;
+    opacity: 0.9;
+  }
+  @keyframes drift {
+    from { background-position: 0 0, 0 0; }
+    to   { background-position: 46px 46px, 46px 46px; }
+  }
+
+  .glow {
+    position: fixed; width: 640px; height: 640px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(79,166,255,0.22), transparent 70%);
+    top: -220px; left: -180px;
+    filter: blur(10px);
+    animation: floaty 9s ease-in-out infinite;
+  }
+  .glow.two {
+    top: auto; left: auto; bottom: -240px; right: -200px;
+    background: radial-gradient(circle, rgba(124,92,255,0.22), transparent 70%);
+    animation-delay: 1.4s;
+  }
+  @keyframes floaty {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50%      { transform: translateY(22px) scale(1.04); }
+  }
+
+  .stage {
+    position: relative;
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .card {
+    position: relative;
+    width: min(680px, 88vw);
+    padding: 56px 52px 42px;
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(18,28,54,0.72), rgba(10,16,32,0.68));
+    border: 1px solid rgba(150, 190, 255, 0.22);
+    box-shadow: 0 30px 90px -20px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.02) inset,
+                0 0 70px -18px rgba(79,166,255,0.35);
+    backdrop-filter: blur(14px);
+    text-align: center;
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+    animation: rise 0.9s cubic-bezier(.2,.8,.2,1) 0.15s forwards;
+  }
+  @keyframes rise {
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .corner {
+    position: absolute; width: 22px; height: 22px;
+    border: 2px solid var(--accent);
+    opacity: 0.85;
+  }
+  .corner.tl { top: -1px; left: -1px; border-right: none; border-bottom: none; border-top-left-radius: 14px; }
+  .corner.tr { top: -1px; right: -1px; border-left: none; border-bottom: none; border-top-right-radius: 14px; }
+  .corner.bl { bottom: -1px; left: -1px; border-right: none; border-top: none; border-bottom-left-radius: 14px; }
+  .corner.br { bottom: -1px; right: -1px; border-left: none; border-top: none; border-bottom-right-radius: 14px; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 16px 7px 10px;
+    border-radius: 999px;
+    background: rgba(79,166,255,0.12);
+    border: 1px solid rgba(79,166,255,0.35);
+    color: var(--accent);
+    font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 26px;
+  }
+  .badge svg { display: block; }
+  .badge .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #34e28a;
+    box-shadow: 0 0 0 3px rgba(52,226,138,0.18);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; } 50% { opacity: 0.45; }
+  }
+
+  .greeting {
+    font-size: 15.5px;
+    color: var(--sub);
+    margin-bottom: 10px;
+    letter-spacing: 0.01em;
+  }
+
+  h1 {
+    font-size: clamp(30px, 4.4vw, 42px);
+    line-height: 1.18;
+    font-weight: 750;
+    letter-spacing: -0.01em;
+    background: linear-gradient(95deg, #ffffff 0%, #cfe0ff 42%, var(--accent) 78%, var(--accent-2) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 18px;
+  }
+
+  .tagline {
+    font-size: 14.5px;
+    color: var(--sub);
+    max-width: 440px;
+    margin: 0 auto 34px;
+    line-height: 1.6;
+  }
+
+  .rule {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(150,190,255,0.35), transparent);
+    margin: 0 0 26px;
+  }
+
+  .status {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    font-size: 13px; color: var(--sub);
+    margin-bottom: 8px;
+  }
+  .spinner {
+    width: 15px; height: 15px; border-radius: 50%;
+    border: 2px solid rgba(150,190,255,0.25);
+    border-top-color: var(--accent);
+    animation: spin 0.85s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .bar {
+    width: 100%; height: 4px; border-radius: 999px;
+    background: rgba(150,190,255,0.14);
+    overflow: hidden;
+    margin-top: 14px;
+  }
+  .bar .fill {
+    height: 100%; width: 40%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    animation: load 1.7s ease-in-out infinite;
+  }
+  @keyframes load {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(250%); }
+  }
+
+  footer {
+    margin-top: 34px;
+    font-size: 12px;
+    color: #6f84ad;
+    letter-spacing: 0.03em;
+  }
+  footer b { color: #9fb6e6; font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="glow"></div>
+  <div class="glow two"></div>
+
+  <div class="stage">
+    <div class="card">
+      <span class="corner tl"></span>
+      <span class="corner tr"></span>
+      <span class="corner bl"></span>
+      <span class="corner br"></span>
+
+      <div class="badge">
+        <span class="dot"></span>
+        Blueprint Automation
+      </div>
+
+      <div class="greeting">Xin chào, đã đến với hệ thống</div>
+      <h1>Auto Log Task Blueprint</h1>
+      <p class="tagline">Tự động hoá việc log Task &amp; cập nhật Effort Point / Time Worked lên hệ thống Blueprint (CyberLogitec).</p>
+
+      <div class="rule"></div>
+
+      <div class="status">
+        <span class="spinner"></span>
+        Đang chuẩn bị đăng nhập&hellip;
+      </div>
+      <div class="bar"><div class="fill" id="fill"></div></div>
+
+      <footer>Copyright &copy; <span id="year">2026</span> by <b>Hempy</b></footer>
+    </div>
+  </div>
+
+  <script>
+    // Tự cập nhật theo năm hệ thống thật — "2026" ở trên chỉ là fallback tĩnh
+    // phòng khi JS vì lý do gì đó không chạy (thực tế luôn chạy trong Chromium
+    // do Playwright điều khiển).
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

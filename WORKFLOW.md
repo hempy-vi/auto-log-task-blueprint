@@ -19,7 +19,7 @@ Input là `monthly-report/<yyyymm>_monthly-report.md` (sinh bởi skill
 Mỗi ticket THƯỜNG (Phần 2) trong file `.md` có cấu trúc:
 
 ```
-🟢 **Dự án: <SITE>**                              → chỉ để nhóm hiển thị trong file, KHÔNG dùng để tra bảng PIC (xem cảnh báo casing bên dưới)
+🟢 **Dự án: <SITE>**                              → chỉ để nhóm hiển thị trong file, KHÔNG dùng làm giá trị site thật (xem cảnh báo casing bên dưới)
 **N. <Title>**                                    → Title
 📝 Detail: <toàn bộ khối text, có thể nhiều dòng/nhiều đoạn>
 RELATED UI: <Site> | JOB TYPE: <Modification|Bug Fixing|Data Handling|Reporting|...>
@@ -45,7 +45,7 @@ phải bỏ qua khi parse, không phải dữ liệu.**
 ⚠️ **`site` PHẢI lấy từ dòng `RELATED UI: <Site>`, KHÔNG lấy từ dòng `🟢
 Dự án:`.** Dòng `🟢 **Dự án:**` luôn viết HOA TOÀN BỘ (vd `BK VINA`), trong
 khi dòng `RELATED UI:` viết Title Case (vd `BK Vina`) — đây mới là dạng khớp
-với Bảng Site → Confirmation PIC bên dưới.
+với tên hiển thị Site thật trên Blueprint (RELATED UI).
 
 ⚠️ **`detail` KHÔNG có cấu trúc cố định "1 dòng Detail + 1 dòng Solution".**
 Một số ticket không có dòng "Solution:", một số dùng nhãn khác ("Investigation
@@ -80,8 +80,6 @@ Khác biệt cần xử lý riêng trong parser:
   (ticket này không có dòng đó).
 - **Không có Site** → để trống RELATED UI trên form New Task, không mở popup
   Related UI cho ticket này.
-- Vì không có Site, **không set Confirmation PIC riêng** cho ticket này (giữ
-  nguyên giá trị mặc định hệ thống hiển thị).
 - `detail` lấy nguyên văn toàn bộ đoạn email, không tách Issue/Solution.
 - Cũng phải qua `splitOversizedTicket` như ticket thường nếu Volume > 100
   (xem `src/parser.js`).
@@ -103,7 +101,7 @@ lại rồi thử Submit tiếp — lặp tới khi hết lỗi hoặc hết s�
 | Phase | PIC | Ghi chú |
 |---|---|---|
 | Register | Huy Quoc Nguyen | Chính mình — tự động, script không cần set |
-| Confirmation | **tùy theo Site** — xem bảng mapping ngay dưới đây | BA phụ trách site đó |
+| Confirmation | Giau Doan | Cố định cho MỌI site (dev lead) — không còn phân theo BC từng site |
 | Solving | Huy Quoc Nguyen | Chính mình |
 | Finish | Phu Le | Cố định cho mọi site |
 
@@ -113,44 +111,15 @@ khi chọn Site) là giá trị ngẫu nhiên/lần dùng gần nhất của h�
 (`setAllPhasePics()`). Riêng Register không cần set — luôn tự động là chính
 người đang thao tác.
 
-### Bảng Site → Confirmation PIC (BA phụ trách)
-
-> Chỉ gồm các site đang thực sự làm — không phải toàn bộ site công ty.
-
-| Site | Confirmation PIC |
-|---|---|
-| BK Vina | Le Nguyen Thi Ai |
-| Shinwoo | Le Nguyen Thi Ai |
-| Chunshin | Le Nguyen Thi Ai |
-| Lotte Global Logistics | Hien Tang |
-| Hiknit | Hien Tang |
-| Samil Textile | Hien Tang |
-| Samil | Hien Tang |
-| Posco HN | Hien Tang |
-| Samjin | Hien Tang |
-| Dongil Rubber | Hien Tang |
-| Dongil | Hien Tang |
-| Kolon BD | Hien Tang |
-| Kolon Ind | Hien Tang |
-| AJ Total | Hien Tang |
-| AJ Pho Noi | Hien Tang |
-| AJ DN Cold | Hien Tang |
-| Yujin Kreves | Thanh Dinh Thi Thanh |
-| Yujin | Thanh Dinh Thi Thanh |
-| OT Motor | Thanh Dinh Thi Thanh |
-| Kukil | Thanh Dinh Thi Thanh |
-| Kyungbang | Thanh Dinh Thi Thanh |
-| SIENC | Hien Tang |
-| Daewon Chemical | Thanh Dinh Thi Thanh |
-| ENS Foam | Thanh Dinh Thi Thanh |
-
-Nguồn sự thật thật sự nằm ở `src/config.js` (`SITE_CONFIRMATION_PIC`) — bảng
-trên chỉ để tham khảo nhanh, luôn đối chiếu code khi có nghi ngờ. Đối sánh
-site không phân biệt hoa/thường nhưng phải khớp CHÍNH XÁC toàn bộ tên (không
-phải substring) — xem `getConfirmationPic()`.
-
-Nếu 1 ticket có `site` không nằm trong bảng: script **skip riêng ticket đó**
-(ghi log lý do) rồi tiếp tục các ticket còn lại, không dừng cả batch.
+Đã bỏ bảng BC phụ trách theo từng site (từng dùng để tra Confirmation PIC)
+— theo quyết định nghiệp vụ mới, Confirmation PIC là hằng số cố định
+"Giau Doan" cho MỌI site, không còn phân biệt theo site nữa (xem
+PHASE_PIC.confirmation trong src/config.js). Hệ quả: batch KHÔNG còn tự skip
+ticket vì lý do "site ngoài phạm vi" như trước — mọi site trong
+monthly-report.md đều được thử tạo ticket; nếu site đó không tồn tại thật
+trong popup Related UI của Blueprint, lỗi sẽ lộ ra ở bước chọn Related UI
+(Bước 1) và ticket đó rơi vào "Lỗi" trong tổng kết batch, không còn rơi vào
+"Bỏ qua" như cơ chế cũ.
 
 Lưu ý: `hours` dạng thập phân (vd 2.67) phải tách thành Hours + Minutes khi
 điền form (2.67h = 2 giờ 40 phút). Dòng "Total Time: X hours" ở đầu mỗi bảng
@@ -405,11 +374,11 @@ xem mục 3.
   Title ở ô search trang Requirement để kiểm tra đã tồn tại chưa — hữu ích
   khi script bị lỗi/crash giữa chừng và phải chạy lại. Xem giới hạn thật ở
   mục 3.
-- **Xử lý lỗi từng ticket**: nếu 1 ticket lỗi (site ngoài phạm vi, timeout
-  mạng, toast lỗi không mong đợi...) → ghi log lý do + bỏ qua ticket đó, tiếp
-  tục ticket kế tiếp, không dừng cả batch — trừ lỗi hệ thống nghiêm trọng
-  (mất kết nối, trình duyệt crash, hoặc chính bước phục hồi sau lỗi cũng
-  thất bại).
+- **Xử lý lỗi từng ticket**: nếu 1 ticket lỗi (site không tồn tại thật trong
+  popup Related UI, timeout mạng, toast lỗi không mong đợi...) → ghi log lý
+  do + bỏ qua ticket đó, tiếp tục ticket kế tiếp, không dừng cả batch — trừ
+  lỗi hệ thống nghiêm trọng (mất kết nối, trình duyệt crash, hoặc chính bước
+  phục hồi sau lỗi cũng thất bại).
 - **Dọn trạng thái sau ticket lỗi**: quay lại trang Requirement, chọn lại
   Project/Category, đóng mọi tab/modal còn kẹt trước khi sang ticket kế
   tiếp — nếu bước dọn dẹp này cũng lỗi thì dừng cả batch (không âm thầm chạy

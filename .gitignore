@@ -6,3 +6,6 @@ monthly-report/
 # dữ liệu ticket thật (title, site, effort point, URL nội bộ Blueprint).
 *.png
 *.html
+# assets/*.html là file nguồn thật của tính năng (màn hình chào), không phải
+# debug dump - phải được track bởi git, không bị *.html ở trên loại trừ.
+!assets/*.html

@@ -6,7 +6,7 @@ require('../src/loadEnv').loadEnv();
 const readline = require('readline');
 const { chromium } = require('playwright');
 const blueprint = require('../src/blueprintActions');
-const { getCredentials, getConfirmationPic } = require('../src/config');
+const { getCredentials, PHASE_PIC } = require('../src/config');
 const { parseMonthlyReport } = require('../src/parser');
 const SEL = require('../src/selectors');
 
@@ -32,7 +32,7 @@ async function main() {
     process.exit(1);
   }
   console.log('Ticket:', JSON.stringify(ticket, null, 2));
-  console.log('Confirmation PIC:', getConfirmationPic(ticket.site));
+  console.log('Confirmation PIC:', PHASE_PIC.confirmation);
 
   const browser = await chromium.launch({
     headless: false,

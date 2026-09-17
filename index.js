@@ -67,6 +67,16 @@ async function main() {
   const context = await browser.newContext({ viewport: null });
   const page = await context.newPage();
 
+  // Màn hình chào (assets/splash.html) — thuần cosmetic, không ảnh hưởng
+  // logic batch. Lỗi ở bước này (vd thiếu file) không được làm dừng cả batch.
+  try {
+    const splashPath = path.resolve(__dirname, 'assets', 'splash.html');
+    await page.goto(`file:///${splashPath.replace(/\\/g, '/')}`);
+    await page.waitForTimeout(10000); // khớp với thời lượng thanh loading 10s trong splash.html
+  } catch (err) {
+    console.warn(`Không hiện được màn hình chào (${err.message}) — bỏ qua, tiếp tục đăng nhập.`);
+  }
+
   try {
     console.log('Đang đăng nhập tự động...');
     await blueprint.login(page, getCredentials());

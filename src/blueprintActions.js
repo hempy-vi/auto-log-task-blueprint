@@ -7,7 +7,7 @@
 // test tay (vd 1 bước cần thêm điều kiện rẽ nhánh mới).
 
 const SEL = require('./selectors');
-const { CONSTANTS, PHASE_PIC, PHASE_INDEX, getConfirmationPic } = require('./config');
+const { CONSTANTS, PHASE_PIC, PHASE_INDEX } = require('./config');
 
 class NotImplementedError extends Error {
   constructor(what, workflowRef) {
@@ -148,10 +148,11 @@ async function setRelatedUiSite(page, site) {
   await page.locator(programNameInput).pressSequentially(site, { delay: 30 });
   await page.waitForTimeout(500);
 
-  // Khớp CHÍNH XÁC tên site + KHÔNG phân biệt hoa/thường (đồng nhất với
-  // getConfirmationPic() ở config.js) — dùng regex neo đầu/cuối thay vì nhúng
-  // tên site vào chuỗi CSS selector, để tránh vừa lỗi substring vừa lỗi phân
-  // biệt hoa/thường (xem ghi chú ở selectors.js).
+  // Khớp CHÍNH XÁC tên site + KHÔNG phân biệt hoa/thường (báo cáo tháng do
+  // người gõ tay, dễ lệch case như "kolon ind"/"KOLON VN" vs "Kolon Ind" thật)
+  // — dùng regex neo đầu/cuối thay vì nhúng tên site vào chuỗi CSS selector,
+  // để tránh vừa lỗi substring vừa lỗi phân biệt hoa/thường (xem ghi chú ở
+  // selectors.js).
   const siteRow = page
     .locator(assertReady(SEL.inquiryProgramPopup.siteRow, 'inquiryProgramPopup.siteRow', 'Bước 2'))
     .filter({ hasText: new RegExp(`^\\s*${escapeRegExp(site)}\\s*$`, 'i') });
@@ -171,8 +172,8 @@ async function setPhasePicByIndex(page, index, picName) {
 }
 
 /** Set PIC cho Confirmation/Solving/Finish theo đúng bảng ở WORKFLOW.md mục 1. Register không cần set (luôn là chính user). */
-async function setAllPhasePics(page, site) {
-  await setPhasePicByIndex(page, PHASE_INDEX.confirmation, getConfirmationPic(site));
+async function setAllPhasePics(page) {
+  await setPhasePicByIndex(page, PHASE_INDEX.confirmation, PHASE_PIC.confirmation);
   await setPhasePicByIndex(page, PHASE_INDEX.solving, PHASE_PIC.solving);
   await setPhasePicByIndex(page, PHASE_INDEX.finish, PHASE_PIC.finish);
 }
@@ -207,10 +208,11 @@ async function fillNewTaskForm(page, ticket) {
   await page.click(richTextEditor);
   await page.locator(richTextEditor).pressSequentially(ticket.detail, { delay: 3 });
 
-  // Áp dụng cho MỌI ticket, kể cả ticket đặc biệt (site=null): Solving/Finish
-  // luôn cố định theo Bảng PIC ở config.js; Confirmation tự bỏ qua khi
-  // getConfirmationPic(null) trả về null (WORKFLOW.md mục 1.1).
-  await setAllPhasePics(page, ticket.site);
+  // Áp dụng cho MỌI ticket, kể cả ticket đặc biệt (site=null): cả 3 phase
+  // Confirmation/Solving/Finish đều cố định theo Bảng PIC ở config.js, không
+  // còn phụ thuộc site nào (Confirmation = "Giau Doan" 100%, kể cả ticket
+  // đặc biệt không có site).
+  await setAllPhasePics(page);
 }
 
 /** yyyy-mm-dd + N ngày -> yyyy-mm-dd (dùng khi Due Date rơi vào ngày lễ/không hợp lệ). */

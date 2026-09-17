@@ -9,7 +9,7 @@ thống Blueprint (CyberLogitec). Đặc tả nghiệp vụ đầy đủ nằm �
 
 ```
 src/parser.js            parse file .md -> JSON ticket
-src/config.js            hằng số nghiệp vụ + bảng Site -> Confirmation PIC
+src/config.js            hằng số nghiệp vụ (PIC theo Phase, giới hạn Volume, v.v.)
 src/selectors.js         TOÀN BỘ CSS selector thật -- đã xác nhận qua test thật trên production
 src/blueprintActions.js  hành động Playwright trên hệ thống Blueprint (Bước 0 -> Bước 5)
 src/runner.js            chạy batch nhiều ticket, chống trùng, tự phục hồi khi 1 ticket lỗi, tổng kết
@@ -44,7 +44,7 @@ run.bat monthly-report\202607_monthly-report.md
 ```
 
 Tự động: (1) chạy dry-run in ra danh sách ticket đã parse để kiểm tra trước
-(site chưa map PIC, title trùng lặp...), (2) hỏi xác nhận (gõ `Y`), (3) chỉ
+(title trùng lặp, sai site/job type...), (2) hỏi xác nhận (gõ `Y`), (3) chỉ
 khi xác nhận mới mở trình duyệt thật và tạo ticket. **Luôn đọc kỹ danh sách
 dry-run trước khi gõ Y** — đây là hành động thật, tạo ticket thật trên
 production, không dễ hoàn tác.
@@ -62,7 +62,7 @@ node index.js --dry-run --report ./monthly-report/202607_monthly-report.md
 
 In ra danh sách ticket đã parse được kèm site, job type, số dòng Effort
 Point/Time Worked — **luôn chạy lệnh này trước** mỗi lần đổi file
-monthly-report để phát hiện sớm site chưa map PIC, title trùng lặp, v.v.
+monthly-report để phát hiện sớm title trùng lặp, sai site/job type, v.v.
 trước khi đụng tới trình duyệt thật.
 
 ```

@@ -42,19 +42,6 @@ async function runBatch(page, parsed, options) {
       continue;
     }
 
-    if (ticket.type === 'regular') {
-      const { getConfirmationPic } = require('./config');
-      if (!getConfirmationPic(ticket.site)) {
-        results.skipped.push({
-          ticket,
-          reason: `Site "${ticket.site}" ngoài phạm vi (không có trong bảng Site->Confirmation PIC)`,
-        });
-        // eslint-disable-next-line no-console
-        console.warn(`${label} -> SKIP: site "${ticket.site}" ngoài phạm vi`);
-        continue;
-      }
-    }
-
     const occurrenceIndex = (occurrenceSoFar.get(ticket.title) || 0) + 1;
     occurrenceSoFar.set(ticket.title, occurrenceIndex);
 

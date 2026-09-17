@@ -140,10 +140,10 @@ module.exports = {
     // `:has-text()` (khớp substring, gặp thật lỗi tick nhầm/"strict mode
     // violation" với các cặp tên lồng nhau: "Samil"/"Samil Textile",
     // "Dongil"/"Dongil Rubber", "Yujin"/"Yujin Kreves") rồi `:text-is()`
-    // (khớp chính xác nhưng lại PHÂN BIỆT hoa/thường theo tài liệu Playwright,
-    // mâu thuẫn với việc getConfirmationPic() không phân biệt hoa/thường —
-    // sẽ tick nhầm/thất bại nếu tên site trong monthly-report.md lệch case so
-    // với tên hiển thị thật, đúng kiểu lỗi "KOLON VN" vs "Kolon Ind" đã gặp).
+    // (khớp chính xác nhưng lại PHÂN BIỆT hoa/thường theo tài liệu Playwright
+    // — sẽ tick nhầm/thất bại nếu tên site trong monthly-report.md lệch case
+    // so với tên hiển thị thật, đúng kiểu lỗi "KOLON VN" vs "Kolon Ind" đã
+    // gặp, vì monthly-report.md do người gõ tay).
     // ĐÚNG cách: lấy hết các dòng qua `siteRow`, rồi lọc CHÍNH XÁC + KHÔNG
     // phân biệt hoa/thường bằng `.filter({hasText: /^tên$/i})` ở
     // blueprintActions.js (xem setRelatedUiSite).
