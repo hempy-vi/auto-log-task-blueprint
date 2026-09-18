@@ -55,7 +55,11 @@ UI:`** làm 1 khối `detail` duy nhất, không cố tách riêng theo nhãn.
 
 ### 1.1 Ticket Đặc Biệt "Monthly Report" (Phần 3)
 
-Luôn xuất hiện 1 lần mỗi tháng, ở cuối file. Cấu trúc khác ticket thường:
+Xuất hiện khi tháng đó có ít nhất 1 task chứa từ khoá Meeting/Sync/Discuss/
+Internal/Training (quy tắc MERGE của `/monthly-report`) — không phải mọi
+tháng đều có (vd `202608_monthly-report.md` không có phần này, parser trả
+`specialTicket: null` bình thường, không phải lỗi). Khi có, luôn đúng 1
+ticket duy nhất, ở cuối file. Cấu trúc khác ticket thường:
 
 ```
 🟢 TICKET ĐẶC BIỆT: MONTHLY REPORT (Meetings & Syncs)
@@ -432,6 +436,26 @@ xem mục 3.
   lệch 1 so với Total EP khai báo do làm tròn khi chia tay ở bước viết báo
   cáo — không ảnh hưởng vì cột Point trong Time Worked không được code đọc
   tới (Blueprint tự tính lại khi Save).
+- **`splitOversizedTicket` chỉ xử lý ticket có ĐÚNG 1 dòng Effort Point**
+  (`src/parser.js`, `if (ticket.effortPoints.length !== 1) return [ticket]`)
+  — ticket có 2+ dòng Effort Point mà 1 trong số đó Volume > 100 sẽ bị bỏ
+  qua HOÀN TOÀN không tách, không báo lỗi/cảnh báo gì, và bị submit thẳng
+  vượt giới hạn nghiệp vụ. Chưa gặp thật trong dữ liệu đã chạy (mọi tháng
+  tới nay đều đúng 1 dòng Effort Point/ticket) nhưng là edge case chưa xử lý
+  nếu tương lai có ticket nhiều dòng Effort Point.
+- **`submitNewTask()` có nhánh retry thứ 3 ngoài 2 loại toast Due Date** (xem
+  Bước 1 "Validation Due Date"): nếu bấm Submit mà KHÔNG thấy toast nào lẫn
+  popup không tự đóng trong ~12s (nghi UI/mạng xử lý chậm, không phải do
+  Due Date bị từ chối), tool tự bấm lại Submit với NGUYÊN Due Date cũ (không
+  đổi ngày), đếm riêng bằng `submitRetries` (khác `dateRetries`), cap ở
+  `maxRetries`, ném lỗi riêng nếu vẫn không thành công sau khi hết lượt thử.
+- **Bước 4.5 (100% Effort Point vào Register) không tự đọc lại header
+  "đã điền / tổng gốc" để xác nhận khớp trước khi bấm confirm** —
+  `setAllEffortPointToRegister()` điền cả 4 ô rồi bấm confirm luôn, không
+  có bước code tự kiểm tra 2 số bằng nhau (dù comment code có nhắc tới đúng
+  cơ chế header này). Một lần `input.fill()` thất bại âm thầm trên 1 ô sẽ
+  không bị chặn lại trước khi lưu. Chưa gặp thật, nhưng đây là gap giữa mô
+  tả ở trên ("nếu 2 số không bằng nhau thì đừng bấm confirm") và code thật.
 
 ## 4. Tình trạng implement
 

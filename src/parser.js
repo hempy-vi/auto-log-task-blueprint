@@ -358,6 +358,18 @@ function parseMonthlyReport(filePath) {
   // (rỗng nếu không có ticket đặc biệt) để không bỏ sót trường hợp này.
   const specialTickets = specialTicket ? splitOversizedTicket(specialTicket) : [];
 
+  // Guard chống lỗi im lặng: file không đúng định dạng monthly-report.md
+  // (vd trỏ nhầm vào .xlsx) đọc bằng utf-8 sẽ ra chuỗi vô nghĩa, không khớp
+  // bất kỳ regex nào ở trên — trước đây trả về {tickets:[], specialTicket:
+  // null} y hệt 1 tháng hợp lệ không có gì để log, không có tín hiệu lỗi
+  // nào. Chỉ ném lỗi khi file THẬT SỰ có nội dung (tránh vỡ trường hợp file
+  // trống hợp lệ) nhưng parse ra rỗng hoàn toàn.
+  if (splitTickets.length === 0 && !specialTicket && content.trim().length > 0) {
+    throw new Error(
+      `Không parse được ticket nào từ "${filePath}" dù file không rỗng — kiểm tra lại đúng định dạng monthly-report.md (không phải .xlsx/file khác) và đã có ít nhất 1 dòng "🟢 **Dự án: ..." hoặc "🟢 TICKET ĐẶC BIỆT".`
+    );
+  }
+
   return { tickets: splitTickets, specialTicket, specialTickets };
 }
 

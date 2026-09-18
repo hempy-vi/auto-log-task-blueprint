@@ -121,12 +121,6 @@ module.exports = {
     displayNameByIndex: (i) => `#usrNm${i}`,
   },
 
-  // Popup "Inquiry Program" (search Program Name/Code) — mở sau khi bấm
-  // relatedUiEditButton. Cấu trúc chi tiết CHƯA dump được, giữ nguyên
-  // placeholder cho tới khi test thật.
-  existingUiPopup: {
-    root: 'TODO_existingUiPopupRoot',
-  },
   // Popup "Related UI" (đã xác nhận cấu trúc thật): ô search Program
   // Name/Code + cây checkbox liệt kê sẵn toàn bộ site đã cấu hình (không
   // cần search vẫn thấy — search chỉ để lọc bớt cho dễ tìm). Mỗi dòng site
