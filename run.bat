@@ -1,9 +1,12 @@
 @echo off
 setlocal
 
+if "%~1"=="/HIDDEN" goto :hidden
+
 if "%~1"=="" (
   echo Cach dung: run.bat "duong-dan-file-report.md"
   echo Vi du:     run.bat monthly-report\202609_monthly-report.md
+  echo Chay AN ^(khong cua so, khong dry-run/xac nhan^): wscript run-hidden.vbs "duong-dan-file-report.md"
   pause
   exit /b 1
 )
@@ -50,5 +53,23 @@ if errorlevel 1 (
 )
 
 echo.
-echo Da chay xong - kiem tra lai bang tong ket phia tren (danh sach OK/SKIP/loi).
-pause
+echo Da chay xong - bao cao chi tiet da tu mo trong trinh duyet cua Playwright.
+echo Cua so nay se tu dong dong khi ban dong trinh duyet do.
+exit /b 0
+
+:hidden
+rem Chay AN (goi lai qua run-hidden.vbs) - BAT BUOC da tu dry-run/kiem tra du
+rem lieu truoc do, vi che do an khong co console de xem/go Y. "shift" lam
+rem doi ca %0 (kiem chung thuc te) - phai luu %~dp0 vao bien TRUOC khi shift.
+set "SCRIPT_DIR=%~dp0"
+shift
+if "%~1"=="" (
+  cd /d "%SCRIPT_DIR%"
+  if not exist logs mkdir logs
+  echo Thieu duong dan file report - huy, khong chay gi ca. > logs\run-last.log
+  exit /b 1
+)
+set "REPORT=%~f1"
+cd /d "%SCRIPT_DIR%"
+if not exist logs mkdir logs
+node index.js --report "%REPORT%" > logs\run-last.log 2>&1

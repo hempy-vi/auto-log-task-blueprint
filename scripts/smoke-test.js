@@ -1,9 +1,5 @@
 // Test nhanh từng bước nhỏ trong lúc điền dần src/selectors.js — KHÔNG đụng
 // tới parser/data thật. Chạy: node scripts/smoke-test.js
-//
-// Hiện đang test tới: đăng nhập -> vào trang Requirement -> bấm "New Task".
-// Sẽ tự dừng (báo NotImplementedError) ngay khi tới field JOB TYPE vì
-// selector đó chưa điền — đó là điều BÌNH THƯỜNG ở bước này, không phải lỗi.
 require('../src/loadEnv').loadEnv();
 const readline = require('readline');
 const { chromium } = require('playwright');
@@ -66,8 +62,7 @@ async function main() {
     await page.screenshot({ path: debugPath, fullPage: true }).catch(() => {});
     console.error('Đã lưu screenshot debug tại:', debugPath);
 
-    // Tự động dump HTML của popup/window Webix đang hiển thị (nếu có) — hữu
-    // ích để lấy selector cho bước TODO tiếp theo mà không cần script riêng.
+    // Dump HTML popup/window Webix đang hiển thị (nếu có) để lấy selector.
     const fs = require('fs');
     const popupHtml = await page.evaluate(() => {
       const nodes = Array.from(document.querySelectorAll('.webix_window, .webix_popup'));

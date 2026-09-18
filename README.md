@@ -14,6 +14,7 @@ src/selectors.js         TOÀN BỘ CSS selector thật -- đã xác nhận qua 
 src/blueprintActions.js  hành động Playwright trên hệ thống Blueprint (Bước 0 -> Bước 5)
 src/runner.js            chạy batch nhiều ticket, chống trùng, tự phục hồi khi 1 ticket lỗi, tổng kết
 src/loadEnv.js           nạp file .env (username/password đăng nhập)
+src/report.js            sinh trang HTML báo cáo kết quả (cùng phong cách assets/splash.html)
 scripts/smoke-test.js              điền form New Task bằng dữ liệu giả, KHÔNG Submit -- test nhanh selector/login còn sống không
 scripts/test-create-real-task.js   tạo THẬT 1 ticket + hoàn tất Job Detail luôn (theo TICKET_TITLE/REPORT_FILE)
 scripts/test-run-one-ticket.js     chạy đúng runner.js thật nhưng CHỈ 1 ticket, dừng lại trước ticket kế tiếp -- QC pipeline
@@ -23,7 +24,8 @@ scripts/test-set-effort-register.js  chạy lại riêng bước "100% Effort Po
 scripts/complete-tickets-by-title.js hoàn tất Job Detail cho NHIỀU ticket đã tạo sẵn cùng lúc (theo TICKET_URLS JSON + REPORT_FILE)
 index.js                 CLI entry point
 setup.bat                (Windows) cài dependency + tạo .env lần đầu
-run.bat                  (Windows) dry-run -> xác nhận -> chạy thật
+run.bat                  (Windows) dry-run -> xác nhận -> chạy thật (hoặc chạy ẩn qua run-hidden.vbs, xem bên dưới)
+run-hidden.vbs           (Windows) chạy AN hoàn toàn (không cửa sổ) -- BỎ QUA dry-run/xác nhận
 ```
 
 ## Cài đặt (Windows — nhanh)
@@ -47,7 +49,23 @@ Tự động: (1) chạy dry-run in ra danh sách ticket đã parse để kiểm
 (title trùng lặp, sai site/job type...), (2) hỏi xác nhận (gõ `Y`), (3) chỉ
 khi xác nhận mới mở trình duyệt thật và tạo ticket. **Luôn đọc kỹ danh sách
 dry-run trước khi gõ Y** — đây là hành động thật, tạo ticket thật trên
-production, không dễ hoàn tác.
+production, không dễ hoàn tác. Sau khi chạy thật xong, báo cáo kết quả tự mở
+ngay trên trình duyệt Playwright đang chạy — cửa sổ `run.bat` tự đóng khi bạn
+đóng trình duyệt đó (không cần bấm phím gì thêm).
+
+### Chạy ẩn (không hiện cửa sổ cmd nào)
+
+```
+wscript run-hidden.vbs monthly-report\202609_monthly-report.md
+```
+
+Chạy **thẳng luôn**, KHÔNG dry-run, KHÔNG hỏi xác nhận — vì không có console
+để xem/gõ `Y`. Chỉ dùng khi đã tự kiểm tra dữ liệu đúng bằng dry-run công khai
+trước đó (`node index.js --dry-run --report ...`, hoặc `run.bat` thường).
+stdout/stderr được ghi vào `logs/run-last.log` để đối chiếu sau. Trình duyệt
+Playwright vẫn mở (không ẩn được — Chromium cần cửa sổ để chạy), chỉ có cửa sổ
+cmd đứng sau là ẩn; báo cáo tự mở trên trình duyệt đó khi chạy xong, tiến
+trình Node tự thoát sạch khi bạn đóng trình duyệt.
 
 ## Cài đặt / chạy thủ công (không dùng .bat, hoặc không phải Windows)
 

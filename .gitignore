@@ -1,6 +1,8 @@
 node_modules/
 .env
 monthly-report/
+reports/
+logs/
 
 # Screenshot/HTML debug do scripts/*.js tự ghi ra khi test/lỗi - có thể chứa
 # dữ liệu ticket thật (title, site, effort point, URL nội bộ Blueprint).

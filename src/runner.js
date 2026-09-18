@@ -68,8 +68,7 @@ async function runBatch(page, parsed, options) {
       await blueprint.submitNewTask(page);
 
       // Sau Submit: popup tự đóng, hệ thống tự search ra đúng 1 dòng (ticket
-      // vừa tạo) trên `page`. Double-click dòng đó mở trang Detail ở TAB MỚI
-      // — mọi bước còn lại (Job Detail, Status) thao tác trên tab mới này.
+      // vừa tạo) trên `page`. Double-click dòng đó mở trang Detail ở TAB MỚI.
       // eslint-disable-next-line no-await-in-loop
       detailPage = await blueprint.openCreatedTicketInNewTab(page, ticket.title);
 
@@ -107,14 +106,13 @@ async function runBatch(page, parsed, options) {
       // tích luỹ nhiều tab bỏ quên qua nhiều ticket lỗi liên tiếp là nghi
       // phạm chính khiến cả trình duyệt bị crash giữa batch. Luôn dọn tab
       // này trước khi xử lý tiếp, bất kể lỗi gì.
-      // ⚠️ Nếu tab Detail đã mở nghĩa là submitNewTask() ĐÃ THÀNH CÔNG — ticket
+      // ⚠️ Tab Detail đã mở nghĩa là submitNewTask() ĐÃ THÀNH CÔNG — ticket
       // "vỏ rỗng" này đã tồn tại thật trên Blueprint (search theo title thấy
       // ngay) dù chưa có Time Worked/Effort Point. Lưu lại URL TRƯỚC khi đóng
       // tab: countExistingTicketsByTitle() ở lần chạy batch SAU chỉ đếm theo
       // title (không phân biệt ticket đã hoàn tất hay còn dở dang), nên ticket
       // này sẽ bị SKIP NHẦM là "đã tồn tại" nếu chạy lại cả batch — phải dùng
-      // scripts/complete-tickets-by-title.js với URL này để hoàn tất tay,
-      // không phải chạy lại batch chính.
+      // scripts/complete-tickets-by-title.js với URL này để hoàn tất tay.
       const partialUrl = detailPage && !detailPage.isClosed() ? detailPage.url() : null;
       if (detailPage && !detailPage.isClosed()) {
         // eslint-disable-next-line no-await-in-loop
@@ -143,7 +141,7 @@ async function runBatch(page, parsed, options) {
       // chừng (vd RELATED UI không tìm thấy site) có thể để lại modal New
       // Task còn mở/kẹt (`webix_modal` che hết click), làm ticket kế tiếp
       // cũng lỗi theo dù bản thân nó không có vấn đề gì. Quay lại thẳng
-      // trang Requirement (bỏ qua modal kẹt) rồi chọn lại Project/Category.
+      // trang Requirement (bỏ qua modal kẹt).
       // ⚠️ KHÔNG được nuốt lỗi ở chính bước phục hồi này (trước đây
       // `.catch(()=>{})` im lặng bỏ qua) — nếu chọn lại Project/Category thất
       // bại giữa chừng, các ticket SAU ĐÓ sẽ ghi PIC/Effort Point vào SAI vị

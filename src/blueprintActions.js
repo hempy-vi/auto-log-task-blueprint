@@ -34,9 +34,8 @@ function escapeRegExp(s) {
 // ---------- Đăng nhập ----------
 
 async function login(page, { username, password }) {
-  // CONSTANTS.loginUrl = app Blueprint (không phải domain auth.* trực tiếp —
-  // đó chỉ ra trang "Welcome to Keycloak" chung, không có form đăng nhập).
-  // Vào app Blueprint sẽ tự redirect sang đúng form login (OIDC) của Keycloak.
+  // Lý do dùng loginUrl = app Blueprint (không phải domain auth.* trực
+  // tiếp): xem comment ở CONSTANTS.loginUrl trong config.js.
   await page.goto(CONSTANTS.loginUrl);
   await page.fill(assertReady(SEL.login.usernameInput, 'login.usernameInput', 'Đăng nhập'), username);
   await page.fill(assertReady(SEL.login.passwordInput, 'login.passwordInput', 'Đăng nhập'), password);
@@ -183,7 +182,7 @@ async function fillNewTaskForm(page, ticket) {
   await fillTypeAheadCombo(page, SEL.newTaskForm.important.input, CONSTANTS.important, 'newTaskForm.important.input');
   await fillTypeAheadCombo(page, SEL.newTaskForm.process.input, ticket.process || CONSTANTS.process, 'newTaskForm.process.input');
 
-  // ITERATION là richselect TĨNH (không fill được) — click mở popup rồi chọn.
+  // ITERATION là richselect TĨNH (không fill được) — xem selectFromStaticWebixControl.
   await selectFromStaticWebixControl(
     page,
     SEL.newTaskForm.iteration.staticDisplay,
@@ -296,10 +295,10 @@ async function readDisplayedDueDateIso(page) {
 
 /**
  * Bấm Submit, xử lý 2 loại toast cảnh báo Due Date nếu xuất hiện (có thể lặp
- * lại). ⚠️ KHÔNG tự set Due Date ban đầu (theo yêu cầu của Huy 2026-08-29) —
- * lần bấm Submit ĐẦU TIÊN dùng nguyên giá trị MẶC ĐỊNH mà popup tự hiển thị.
- * Chỉ khi gặp toast cảnh báo mới đọc lại ngày ĐANG HIỂN THỊ, cộng thêm 1 ngày
- * rồi thử lại — lặp cho tới khi hết lỗi hoặc hết `maxRetries`.
+ * lại). Lần Submit ĐẦU TIÊN dùng nguyên Due Date mặc định — không tự set
+ * trước (theo yêu cầu của Huy 2026-08-29, xem fillNewTaskForm). Chỉ khi gặp
+ * toast cảnh báo mới đọc lại ngày ĐANG HIỂN THỊ, cộng thêm 1 ngày rồi thử
+ * lại — lặp cho tới khi hết lỗi hoặc hết `maxRetries`.
  */
 async function submitNewTask(page, maxRetries = 5) {
   let currentDueDate = null; // chỉ đọc từ DOM khi thật sự cần (lần đầu gặp toast)

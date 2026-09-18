@@ -226,38 +226,16 @@ function splitEvenly(total, count) {
 
 /**
  * Theo yêu cầu của Huy (2026-08-29, xem config.CONSTANTS.maxVolumePerTicket):
- * 1 ticket không được vượt quá Volume 100 — đây là lý do nghiệp vụ, KHÔNG
- * phải giới hạn do tool tự phát hiện qua lỗi (tự động nhập Volume=217 cho
- * "P290 Import BOM from Excel" vẫn được Blueprint chấp nhận bình thường lúc
- * test). Ticket nào có 1 dòng Effort Point với Volume > 100 phải được TỰ
- * ĐỘNG tách thành nhiều ticket giống hệt nhau 100% (title, detail, site,
- * jobType, process, iteration) — CHỈ khác Effort Point (Volume chia nhỏ) và
- * Time Worked (chia theo đúng dòng tương ứng).
- *
- * ⚠️ SỬA LẠI TOÀN BỘ THUẬT TOÁN (2026-08-29, lần rà soát thứ 2) — bản đầu
- * dùng thuật toán tham lam "gom nhóm Time Worked theo tổng cột Point gần
- * bằng nhau nhất", có 3 lỗi thật đã CHẠY THỬ TRỰC TIẾP xác nhận: (1) điều
- * kiện đóng nhóm sớm có thể KHÔNG BAO GIỜ thoả với 1 số phân bố Point nhất
- * định (vd chỉ 1 dòng Time Worked, hoặc Point lệch nhau nhiều như [1,1,1000])
- * khiến TOÀN BỘ rơi vào 1 nhóm duy nhất — ticket "tách" ra vẫn giữ nguyên
- * Volume gốc, phá vỡ hoàn toàn mục đích tính năng; (2) kể cả khi gom nhóm
- * đúng số lượng, Volume mỗi phần tính theo tỉ lệ Point KHÔNG có giới hạn trần
- * — 1 nhóm có thể vẫn nhận Volume > 100; (3) nếu cột Point toàn bộ = 0/rỗng
- * thì chia cho `totalPoint=0` ra `NaN`, gõ thẳng chữ "NaN" vào ô Volume thật
- * trên Blueprint. Thuật toán MỚI tách 2 việc ra làm riêng, cả 2 đều tính
- * bằng CÔNG THỨC TOÁN HỌC đơn giản (không phụ thuộc giá trị Point nào, không
- * có nhánh điều kiện có thể không bao giờ đúng):
- * - Volume: chia đều `ep.volume` cho `partCount` phần bằng `splitEvenly()` —
- *   luôn ≤ maxVolume (vì partCount = ceil(volume/maxVolume) nên trung bình
- *   mỗi phần luôn ≤ maxVolume), luôn cộng lại đúng bằng volume gốc.
- * - Time Worked: chia đều SỐ DÒNG cho `partCount` phần liên tục theo đúng
- *   thứ tự trong file (dùng chung `splitEvenly()`) — nếu ít dòng hơn số phần
- *   cần chia (hiếm), các phần dư sẽ có 0 dòng Time Worked, KHÔNG lỗi.
- * Đánh đổi: không còn cố gắng khớp Volume với đúng "khối lượng ngày làm việc"
- * của từng nhóm theo cột Point nữa — chấp nhận được vì cột Point trong Time
- * Worked là DỮ LIỆU CHẾT (Blueprint tự tính lại Point thật khi Save, xem
- * WORKFLOW.md mục 2.5 lỗi #8), không ảnh hưởng gì tới dữ liệu ghi lên hệ
- * thống thật — đổi lấy thuật toán ĐÚNG TUYỆT ĐỐI trong MỌI trường hợp.
+ * 1 ticket không được vượt quá Volume 100 — lý do nghiệp vụ, không phải giới
+ * hạn kỹ thuật (Blueprint vẫn chấp nhận Volume lớn hơn bình thường). Ticket
+ * có 1 dòng Effort Point với Volume > 100 được TỰ ĐỘNG tách thành nhiều
+ * ticket giống hệt nhau (title, detail, site, jobType, process, iteration) —
+ * chỉ khác Effort Point (Volume chia đều bằng `splitEvenly()`, luôn ≤
+ * maxVolume, luôn cộng lại đúng volume gốc) và Time Worked (chia đều SỐ DÒNG
+ * theo đúng thứ tự file, cùng dùng `splitEvenly()` — phần dư có thể 0 dòng,
+ * không lỗi). Không cố khớp Volume theo cột Point của Time Worked — chấp
+ * nhận được vì Point là DỮ LIỆU CHẾT (Blueprint tự tính lại khi Save, xem
+ * WORKFLOW.md mục 2.5 lỗi #8).
  */
 function splitOversizedTicket(ticket, maxVolume = CONSTANTS.maxVolumePerTicket) {
   if (ticket.effortPoints.length !== 1) return [ticket]; // chỉ xử lý ca phổ biến nhất

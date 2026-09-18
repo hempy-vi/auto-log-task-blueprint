@@ -1,7 +1,6 @@
 // Toàn bộ CSS selector/locator thật của hệ thống Blueprint (CyberLogitec).
 //
-// Đây là nơi DUY NHẤT cần sửa khi selector đổi. Phần logic ở
-// blueprintActions.js/runner.js không cần đụng vào khi chỉ sửa selector.
+// Đây là nơi DUY NHẤT cần sửa khi selector đổi.
 //
 // ⚠️ LƯU Ý QUAN TRỌNG: UI dựng bằng framework Webix — rất nhiều widget được
 // Webix gán id DOM dạng số ngẫu nhiên/timestamp (vd `id="1787945521466"`),

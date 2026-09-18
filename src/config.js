@@ -1,15 +1,14 @@
 // Cấu hình nghiệp vụ cố định — tham khảo WORKFLOW.md mục 1.
 
-// Tên đầy đủ của người ĐANG DÙNG tool này — mặc định "Huy Quoc Nguyen" (máy
-// hiện tại), nhưng có thể đổi mà KHÔNG cần sửa code: set biến môi trường
-// BLUEPRINT_FULL_NAME trong file .env của máy đó. Dùng tool này ở máy khác /
-// cho người khác chỉ cần thêm dòng đó vào .env, không cần đụng vào config.js.
+// Tên đầy đủ người ĐANG DÙNG tool — mặc định "Huy Quoc Nguyen" (máy hiện
+// tại). Đổi bằng cách set biến môi trường BLUEPRINT_FULL_NAME trong .env,
+// không cần sửa config.js.
 const CURRENT_USER_FULL_NAME = process.env.BLUEPRINT_FULL_NAME || 'Huy Quoc Nguyen';
 
 const PHASE_PIC = {
   register: CURRENT_USER_FULL_NAME, // luôn là chính user đang thao tác, script không cần set
-  // Theo yêu cầu nghiệp vụ mới: Confirmation 100% là dev lead "Giau Doan" cho
-  // MỌI site (thay cho bảng BC phụ trách theo từng site trước đây).
+  // Confirmation luôn là dev lead "Giau Doan" cho MỌI site (thay bảng BC
+  // phụ trách theo từng site trước đây).
   confirmation: 'Giau Doan',
   solving: CURRENT_USER_FULL_NAME,
   finish: 'Phu Le',
@@ -39,12 +38,11 @@ const CONSTANTS = {
   requirementListUrl: 'https://blueprint.cyberlogitec.com.vn/UI_PIM_001',
 
   // ⚠️ ĐÃ XÁC NHẬN (2026-08-29): trang Requirement có 4 project khả dụng
-  // (CAPA Management/ERP Maintenance/Factory Maintenance/WorkFlow), và
-  // project ĐANG CHỌN quyết định luôn cả luồng Phase (CAPA Management có
-  // 6 phase khác hẳn 4 phase Register/Confirmation/Solving/Finish mà toàn
-  // bộ nghiệp vụ trong WORKFLOW.md dựa vào). BẮT BUỘC phải chủ động chọn
-  // đúng "ERP Maintenance" > "Logistics" trước khi tạo task — KHÔNG được để
-  // mặc định, vì mặc định có thể đang là project khác hoàn toàn.
+  // (CAPA Management/ERP Maintenance/Factory Maintenance/WorkFlow); project
+  // ĐANG CHỌN quyết định cả luồng Phase (CAPA Management có 6 phase, khác
+  // hẳn 4 phase Register/Confirmation/Solving/Finish mà WORKFLOW.md dựa
+  // vào). Phải chủ động chọn đúng "ERP Maintenance" > "Logistics" trước khi
+  // tạo task — không để mặc định vì có thể đang là project khác.
   projectName: 'ERP Maintenance',
   categoryTreeName: 'Logistics',
 
