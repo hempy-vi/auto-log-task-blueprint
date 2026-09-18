@@ -11,6 +11,7 @@ const { parseMonthlyReport } = require('../src/parser');
 
 const TICKET_URL = process.env.TICKET_URL || 'https://blueprint.cyberlogitec.com.vn/UI_PIM_001_1/PRQ20260829000000076';
 const TICKET_TITLE = process.env.TICKET_TITLE || 'Delete Specific Bales';
+const REPORT_FILE = process.env.REPORT_FILE || './monthly-report/202607_monthly-report.md';
 const SHOT = process.env.SHOT_OUT || 'test-full-job-detail.png';
 
 function waitForEnter(promptText) {
@@ -30,7 +31,7 @@ async function shot(page, suffix) {
 }
 
 async function main() {
-  const { tickets } = parseMonthlyReport('./monthly-report/202607_monthly-report.md');
+  const { tickets } = parseMonthlyReport(REPORT_FILE);
   const ticket = tickets.find((t) => t.title.includes(TICKET_TITLE));
 
   const browser = await chromium.launch({ headless: false, slowMo: 150, args: ['--start-maximized'] });

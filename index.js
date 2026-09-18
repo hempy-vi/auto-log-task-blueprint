@@ -20,6 +20,20 @@ function parseArgs(argv) {
   return args;
 }
 
+// Không truyền --report -> bắt buộc phải có MONTH trong .env để suy ra file
+// (monthly-report/<MONTH>_monthly-report.md). Trước đây mặc định cứng về
+// "202607_monthly-report.md" khi thiếu --report -- lỗi tiềm ẩn thật: quên cờ
+// --report sẽ ÂM THẦM chạy nhầm báo cáo tháng cũ thay vì báo lỗi rõ ràng.
+function resolveReportPath(args) {
+  if (args.report) return path.resolve(args.report);
+  if (!process.env.MONTH) {
+    throw new Error(
+      'Thiếu --report và không có MONTH trong .env — truyền đường dẫn file (--report monthly-report\\202609_monthly-report.md), hoặc đặt MONTH=202609 (ví dụ) trong .env rồi chạy lại.'
+    );
+  }
+  return path.resolve(__dirname, 'monthly-report', `${process.env.MONTH}_monthly-report.md`);
+}
+
 function waitForEnter(promptText) {
   return new Promise((resolve) => {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -46,9 +60,7 @@ function printParsedSummary(parsed) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
 
-  const reportPath = args.report
-    ? path.resolve(args.report)
-    : path.resolve(__dirname, 'monthly-report', '202607_monthly-report.md');
+  const reportPath = resolveReportPath(args);
 
   console.log(`Đang đọc file: ${reportPath}`);
   const parsed = parseMonthlyReport(reportPath);

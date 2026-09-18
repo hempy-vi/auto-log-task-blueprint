@@ -47,10 +47,16 @@ async function main() {
         jobType: 'Modification',
         process: 'Reporting',
         iteration: 'Development',
-        detail: 'Đây là dữ liệu test tự động, không phải task thật.',
+        detail: process.env.SMOKE_TEST_DETAIL || 'Đây là dữ liệu test tự động, không phải task thật.',
       }
     );
     console.log('   OK — đã điền xong (chưa bấm Submit).');
+    if (process.env.SMOKE_TEST_DETAIL) {
+      const rendered = await page.locator('[view_id="ckCell"] .ck-editor__editable').innerText();
+      console.log('--- Nội dung CKEditor sau khi điền (innerText) ---');
+      console.log(rendered);
+      console.log('--- Hết ---');
+    }
     const successShot = (process.env.SMOKE_TEST_SCREENSHOT || 'debug-screenshot.png').replace('.png', '-success.png');
     await page.screenshot({ path: successShot, fullPage: true }).catch(() => {});
     console.log('   Screenshot:', successShot);

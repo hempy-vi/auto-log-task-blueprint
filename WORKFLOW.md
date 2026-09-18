@@ -193,8 +193,18 @@ Selector cụ thể xem `src/selectors.js` (`newTaskForm.*`):
 - **Rich-text editor** = CKEditor thật (`.ck-editor__editable`,
   contenteditable chuẩn). ⚠️ **`page.fill()` không báo lỗi nhưng nội dung vẫn
   TRỐNG** — CKEditor tự đồng bộ lại DOM theo model nội bộ, ghi đè giá trị
-  `fill()` vừa set. Phải click để focus rồi gõ bằng `pressSequentially()`
-  (đã sửa trong `fillNewTaskForm()`).
+  `fill()` vừa set.
+  ⚠️ **Không gõ bằng `pressSequentially()`** — ĐÃ XÁC NHẬN THẬT trên ticket
+  production (#3635): CKEditor có autoformat-khi-gõ, tự bắt cặp BẤT KỲ 2 dấu
+  `_` nào trong toàn đoạn văn (không cần cùng 1 từ) thành in nghiêng rồi ăn
+  mất cả 2 dấu — làm hỏng tên biến/procedure có gạch dưới (vd
+  `SP_SEL_BIAS00011` → hiển thị dính liền `SPSELBIAS00011`, `SEL` bị in
+  nghiêng). Cách sửa đúng: PASTE bằng `ClipboardEvent` thật (dựng
+  `DataTransfer` với `text/html` đã có `<strong>` sẵn cho phần `**bold**`),
+  vì autoformat CHỈ kích hoạt khi gõ thật, không kích hoạt khi paste — xem
+  `detailMarkdownToHtml()`/`pasteIntoRichTextEditor()` trong
+  `blueprintActions.js`. Đã verify bằng `scripts/smoke-test.js` (điền form,
+  KHÔNG Submit) + chụp ảnh thật xác nhận giữ đúng dấu `_` và vẫn in đậm đúng.
 - **Attachment**: `<input id="attachFilesSubmitRequirement" type="file" hidden>`
   + drop-zone `#dropAttachFileSubmit` — bỏ qua nếu task không có file.
 - Nút **Submit** = `<button id="btnSubmit">` — id cố định.

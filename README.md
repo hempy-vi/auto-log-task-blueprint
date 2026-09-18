@@ -45,6 +45,13 @@ Chromium cho Playwright, tự tạo `.env` từ `.env.example` nếu chưa có. 
 run.bat monthly-report\202607_monthly-report.md
 ```
 
+Hoặc không cần truyền gì cả — đặt `MONTH=202609` (ví dụ) trong `.env`, tool tự
+suy ra file `monthly-report\202609_monthly-report.md`:
+
+```
+run.bat
+```
+
 Tự động: (1) chạy dry-run in ra danh sách ticket đã parse để kiểm tra trước
 (title trùng lặp, sai site/job type...), (2) hỏi xác nhận (gõ `Y`), (3) chỉ
 khi xác nhận mới mở trình duyệt thật và tạo ticket. **Luôn đọc kỹ danh sách

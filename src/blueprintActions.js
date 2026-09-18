@@ -31,6 +31,58 @@ function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/**
+ * Đổi Detail (markdown nhẹ: chỉ `**bold**` + dòng trống = ngắt đoạn) sang
+ * HTML thật để PASTE trực tiếp vào CKEditor — KHÔNG gõ từng ký tự
+ * (pressSequentially) như trước. ĐÃ XÁC NHẬN THẬT trên ticket production
+ * (#3635): khi gõ từng ký tự, CKEditor tự bắt cặp BẤT KỲ 2 dấu "_" nào trong
+ * toàn đoạn văn thành in nghiêng rồi ăn mất cả 2 dấu — không cần cùng 1 từ,
+ * miễn còn dấu "_" nào đó phía sau trong đoạn văn là bắt cặp luôn (vd
+ * "SP_SEL_BIAS00011" -> "SP" + *SEL* nghiêng + "BIAS00011" hiển thị dính liền
+ * "SPSELBIAS00011"; 2 lần xuất hiện "stock_qty" cách nhau cả câu cũng bị bắt
+ * cặp chéo với nhau). Đây là do tính năng autoformat-khi-gõ của CKEditor,
+ * CHỈ kích hoạt khi gõ thật (typing), KHÔNG kích hoạt khi paste — nên paste
+ * HTML thật (dùng `<strong>` cho in đậm) né được hoàn toàn lỗi này mà vẫn giữ
+ * đúng định dạng đậm mong muốn.
+ */
+function detailMarkdownToHtml(detail) {
+  return detail
+    .split(/\n\n+/) // dòng trống = ngắt đoạn (paragraph)
+    .map((para) =>
+      para
+        .split('\n') // xuống dòng đơn trong cùng đoạn = <br>
+        .map((line) => escapeHtml(line).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'))
+        .join('<br>')
+    )
+    .map((p) => `<p>${p}</p>`)
+    .join('');
+}
+
+/**
+ * Dán (paste) `detail` vào CKEditor tại `selector` bằng ClipboardEvent thật —
+ * xem lý do ở `detailMarkdownToHtml()`. Không dùng clipboard OS thật (tránh
+ * lệ thuộc quyền clipboard của browser) — tự dựng `DataTransfer` rồi dispatch
+ * thẳng sự kiện `paste` lên đúng phần tử đang focus.
+ */
+async function pasteIntoRichTextEditor(page, selector, detail) {
+  const html = detailMarkdownToHtml(detail);
+  await page.click(selector);
+  await page.evaluate(
+    ({ sel, pastedHtml, pastedText }) => {
+      const el = document.querySelector(sel);
+      const dataTransfer = new DataTransfer();
+      dataTransfer.setData('text/html', pastedHtml);
+      dataTransfer.setData('text/plain', pastedText);
+      el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dataTransfer, bubbles: true, cancelable: true }));
+    },
+    { sel: selector, pastedHtml: html, pastedText: detail }
+  );
+}
+
 // ---------- Đăng nhập ----------
 
 async function login(page, { username, password }) {
@@ -200,12 +252,11 @@ async function fillNewTaskForm(page, ticket) {
 
   // ⚠️ CKEditor (contenteditable) KHÔNG nhận page.fill() — đã xác nhận thật:
   // fill() chạy không lỗi nhưng nội dung vẫn trống (CKEditor tự đồng bộ lại
-  // DOM theo model nội bộ của nó, ghi đè giá trị fill() vừa set). Phải click
-  // để focus rồi gõ từng ký tự thật (pressSequentially) để CKEditor nhận
-  // đúng sự kiện bàn phím và cập nhật model nội bộ.
+  // DOM theo model nội bộ của nó, ghi đè giá trị fill() vừa set). Dùng paste
+  // (pasteIntoRichTextEditor) thay vì gõ từng ký tự — xem lý do đầy đủ ở
+  // detailMarkdownToHtml().
   const richTextEditor = assertReady(SEL.newTaskForm.richTextEditor, 'newTaskForm.richTextEditor', 'Bước 1');
-  await page.click(richTextEditor);
-  await page.locator(richTextEditor).pressSequentially(ticket.detail, { delay: 3 });
+  await pasteIntoRichTextEditor(page, richTextEditor, ticket.detail);
 
   // Áp dụng cho MỌI ticket, kể cả ticket đặc biệt (site=null): cả 3 phase
   // Confirmation/Solving/Finish đều cố định theo Bảng PIC ở config.js, không
