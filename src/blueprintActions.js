@@ -579,7 +579,16 @@ function hoursToHourMinute(hours) {
 
 async function addTimeWorkedRow(page, row) {
   const tw = SEL.jobDetailModal.timeWorked;
+  // ĐÃ XÁC NHẬN THẬT (chẩn đoán trực tiếp trên ticket #3636): bấm "New" NGAY
+  // sau khi click tab Time Worked (không chờ gì) là race condition — nút New
+  // đã visible/enabled về mặt DOM nhưng Webix chưa kịp gắn lại event handler
+  // sau khi chuyển tab, nên click "rơi" không có tác dụng, sub-form không bao
+  // giờ hiện ra (dẫn tới timeout ở bước chờ `phaseNameInput` phía dưới, cả 2
+  // lần thử — kể cả sau khi đóng/mở lại modal). Thêm 300ms chờ cho Webix
+  // settle xong sau khi chuyển tab là hết hẳn — verify bằng script chẩn đoán
+  // (không cần chờ mới THẬT xuất hiện tức thì sau khi bấm New).
   await page.click(assertReady(SEL.jobDetailModal.timeWorkedTab, 'jobDetailModal.timeWorkedTab', 'Bước 4'));
+  await page.waitForTimeout(300);
   await page.click(assertReady(tw.newButton, 'jobDetailModal.timeWorked.newButton', 'Bước 4'));
   await page.waitForTimeout(300);
 
@@ -607,6 +616,7 @@ async function addTimeWorkedRow(page, row) {
       .waitFor({ state: 'hidden', timeout: 5000 });
     await openJobDetailModal(page);
     await page.click(assertReady(SEL.jobDetailModal.timeWorkedTab, 'jobDetailModal.timeWorkedTab', 'Bước 4'));
+    await page.waitForTimeout(300); // xem ghi chú race-condition ở lần click tab đầu tiên phía trên
     await page.click(assertReady(tw.newButton, 'jobDetailModal.timeWorked.newButton', 'Bước 4'));
     await page.waitForTimeout(300);
     await phaseNameInput.waitFor({ state: 'visible', timeout: 10000 });
