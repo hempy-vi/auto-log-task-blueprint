@@ -493,6 +493,13 @@ async function openJobDetailModal(page) {
 // ---------- Bước 3: tab Effort Point ----------
 
 async function addEffortPoint(page, effortPoint) {
+  // Cùng loại race condition đã xác nhận ở tab Time Worked (xem
+  // addTimeWorkedRow) — click tab Effort Point NGAY sau khi vừa Save dòng
+  // Time Worked cuối (toast + Webix re-render bảng) đã gặp thật timeout 30s
+  // dù tab hoàn toàn không bị che gì khi mở lại modal fresh để kiểm tra
+  // (chỉ xảy ra ngay sau chuỗi thao tác Time Worked, không phải trạng thái
+  // cố định trên ticket). Thêm chờ ngắn cho Webix settle trước khi đổi tab.
+  await page.waitForTimeout(300);
   await page.click(assertReady(SEL.jobDetailModal.effortPointTab, 'jobDetailModal.effortPointTab', 'Bước 3'));
   await page.click(
     assertReady(
@@ -764,6 +771,7 @@ module.exports = {
   openCreatedTicketInNewTab,
   setStatus,
   openJobDetailModal,
+  addEffortPoint,
   addAllEffortPoints,
   addAllTimeWorked,
   hoursToHourMinute,

@@ -50,10 +50,14 @@ async function main() {
     await blueprint.openJobDetailModal(page);
     await shot(page, '1-opened');
 
-    console.log(`4. Nhập Time Worked (${ticket.timeWorked.length} dòng)...`);
-    await blueprint.addAllTimeWorked(page, ticket.timeWorked);
-    console.log('   OK.');
-    await shot(page, '2-time-worked-done');
+    if (process.env.SKIP_TIME_WORKED === '1') {
+      console.log('4. Bỏ qua Time Worked (SKIP_TIME_WORKED=1 — ticket đã có sẵn dòng, tránh tạo trùng).');
+    } else {
+      console.log(`4. Nhập Time Worked (${ticket.timeWorked.length} dòng)...`);
+      await blueprint.addAllTimeWorked(page, ticket.timeWorked);
+      console.log('   OK.');
+      await shot(page, '2-time-worked-done');
+    }
 
     console.log(`5. Nhập Effort Point (${ticket.effortPoints.length} dòng)...`);
     await blueprint.addAllEffortPoints(page, ticket.effortPoints);
