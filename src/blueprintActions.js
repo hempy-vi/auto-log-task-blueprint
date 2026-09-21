@@ -493,14 +493,19 @@ async function openJobDetailModal(page) {
 // ---------- Bước 3: tab Effort Point ----------
 
 async function addEffortPoint(page, effortPoint) {
-  // Cùng loại race condition đã xác nhận ở tab Time Worked (xem
-  // addTimeWorkedRow) — click tab Effort Point NGAY sau khi vừa Save dòng
-  // Time Worked cuối (toast + Webix re-render bảng) đã gặp thật timeout 30s
-  // dù tab hoàn toàn không bị che gì khi mở lại modal fresh để kiểm tra
-  // (chỉ xảy ra ngay sau chuỗi thao tác Time Worked, không phải trạng thái
-  // cố định trên ticket). Thêm chờ ngắn cho Webix settle trước khi đổi tab.
+  // ⚠️ ĐÃ XÁC NHẬN THẬT (2 ticket khác nhau, kể cả sau khi thêm 300ms chờ):
+  // click thường vào tab Effort Point NGAY sau khi Save dòng Time Worked
+  // cuối bị timeout TOÀN BỘ 30s — không phải chờ chưa đủ lâu, vì mở lại
+  // modal fresh để kiểm tra thì tab hoàn toàn bình thường (visible, đã
+  // selected, elementFromPoint đúng chính nó — không bị che). Nghi Playwright
+  // stability-check (so sánh vị trí qua nhiều animation frame) kẹt do hiệu
+  // ứng chuyển tab của Webix. `{ force: true }` bỏ qua toàn bộ actionability
+  // check (visible/stable/receives-events) — đã verify: luôn thành công
+  // ngay lập tức trong mọi lần thử, kể cả khi click thường treo đủ 30s.
   await page.waitForTimeout(300);
-  await page.click(assertReady(SEL.jobDetailModal.effortPointTab, 'jobDetailModal.effortPointTab', 'Bước 3'));
+  await page.click(assertReady(SEL.jobDetailModal.effortPointTab, 'jobDetailModal.effortPointTab', 'Bước 3'), {
+    force: true,
+  });
   await page.click(
     assertReady(
       SEL.jobDetailModal.effortPoint.categoryListItem(effortPoint.category),
