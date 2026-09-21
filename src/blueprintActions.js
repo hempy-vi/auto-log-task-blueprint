@@ -7,7 +7,7 @@
 // test tay (vd 1 bước cần thêm điều kiện rẽ nhánh mới).
 
 const SEL = require('./selectors');
-const { CONSTANTS, PHASE_PIC, PHASE_INDEX } = require('./config');
+const { CONSTANTS, PHASE_PIC, PHASE_INDEX, resolveSiteProgramName } = require('./config');
 
 class NotImplementedError extends Error {
   constructor(what, workflowRef) {
@@ -195,8 +195,14 @@ async function setRelatedUiSite(page, site) {
     'inquiryProgramPopup.programNameInput',
     'Bước 2'
   );
+  // ⚠️ ĐÃ XÁC NHẬN THẬT (2026-09-21, site "LGL WMS"): tên trong từ điển báo
+  // cáo đôi khi khác Program Name thật đăng ký trên Blueprint — search theo
+  // tên từ điển trả về 0 kết quả dù chờ đủ lâu (không phải lỗi timing). Tra
+  // qua config.resolveSiteProgramName() để lấy đúng tên thật trước khi gõ —
+  // xem SITE_NAME_ALIASES ở config.js để thêm site mới nếu gặp lại.
+  const programName = resolveSiteProgramName(site);
   await page.click(programNameInput);
-  await page.locator(programNameInput).pressSequentially(site, { delay: 30 });
+  await page.locator(programNameInput).pressSequentially(programName, { delay: 30 });
   await page.waitForTimeout(500);
 
   // Khớp CHÍNH XÁC tên site + KHÔNG phân biệt hoa/thường (báo cáo tháng do
@@ -206,7 +212,7 @@ async function setRelatedUiSite(page, site) {
   // selectors.js).
   const siteRow = page
     .locator(assertReady(SEL.inquiryProgramPopup.siteRow, 'inquiryProgramPopup.siteRow', 'Bước 2'))
-    .filter({ hasText: new RegExp(`^\\s*${escapeRegExp(site)}\\s*$`, 'i') });
+    .filter({ hasText: new RegExp(`^\\s*${escapeRegExp(programName)}\\s*$`, 'i') });
   await siteRow.locator('input[type="checkbox"]').click();
   await page.click(assertReady(SEL.inquiryProgramPopup.selectButton, 'inquiryProgramPopup.selectButton', 'Bước 2'));
 }
