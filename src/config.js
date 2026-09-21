@@ -54,22 +54,6 @@ const CONSTANTS = {
   maxVolumePerTicket: 100,
 };
 
-// ⚠️ ĐÃ XÁC NHẬN THẬT (2026-09-21): tên "Related UI" dùng trong từ điển
-// /daily-report + /monthly-report đôi khi KHÁC với "Program Name" thật đăng
-// ký trên Blueprint — popup "Related UI" search theo Program Name, không
-// nhận diện được tên viết tắt trong từ điển báo cáo, trả về 0 kết quả dù đã
-// chờ đủ lâu (không phải lỗi timing). Map ở đây để tra cứu tên THẬT trước khi
-// gõ vào ô search — chỉ ảnh hưởng bước chọn Related UI, KHÔNG đổi tên hiển
-// thị "LGL WMS" ở bất kỳ đâu khác (báo cáo, Detail...).
-const SITE_NAME_ALIASES = {
-  'LGL WMS': 'Lotte Global Logistics', // Program Code LGLV, xác nhận qua ảnh chụp popup thật
-};
-
-/** Trả về Program Name THẬT trên Blueprint cho 1 site trong từ điển báo cáo — nguyên văn nếu không có alias. */
-function resolveSiteProgramName(site) {
-  return SITE_NAME_ALIASES[site] || site;
-}
-
 /** Đọc username/password từ process.env (nạp qua src/loadEnv.js từ file .env). */
 function getCredentials() {
   const username = process.env.BLUEPRINT_USERNAME;
@@ -87,5 +71,4 @@ module.exports = {
   PHASE_INDEX,
   CONSTANTS,
   getCredentials,
-  resolveSiteProgramName,
 };
