@@ -7,7 +7,7 @@ không phải suy đoán từ giao diện.
 
 ## 1. Nguồn dữ liệu đầu vào
 
-Input là `monthly-report/<yyyymm>_monthly-report.md` (sinh bởi skill
+Input là `work-reports/<yyyymm>_monthly-report.md` (sinh bởi skill
 `/monthly-report`). File gồm 3 phần, parser chỉ đọc Phần 2 và Phần 3:
 - **Phần 1 — "Bảng Summary Tháng"**: bảng tổng hợp theo ngày, chỉ để người đọc
   đối chiếu. **Bỏ qua hoàn toàn**, không dùng để tạo Task.
@@ -25,6 +25,8 @@ Mỗi ticket THƯỜNG (Phần 2) trong file `.md` có cấu trúc:
 RELATED UI: <Site> | JOB TYPE: <Modification|Bug Fixing|Data Handling|Reporting|...>
 PROCESS: Reporting                                → hằng số, luôn "Reporting"
 ITERATION: Development                            → hằng số, luôn "Development"
+LOG: <Y hoặc N>                                    → tuỳ chọn (mặc định N nếu thiếu) — đánh dấu ticket đã log Blueprint thành công hay chưa, xem src/parser.js LOG_STATUS_RE + src/writeback.js
+BLUEPRINT: <url[, url2, ...]>                      → tuỳ chọn — URL ticket THẬT trên Blueprint (nếu đã tạo), nhiều URL cách nhau ", " khi ticket bị splitOversizedTicket() tách thành nhiều ticket con cùng title (mỗi con 1 URL riêng, xem src/parser.js BLUEPRINT_URL_RE). runner.js đi THẲNG vào URL này (không search lại) nếu có -- xem "Bước 6" và mục 3.
 
 **Effort Point (Total Vol: X | Total EP: Y):**
 | Category | Job Details | Unit Point | Volume | Total |
@@ -52,6 +54,12 @@ Một số ticket không có dòng "Solution:", một số dùng nhãn khác ("I
 & Action:"), một số có nhiều đoạn (Requirement/Issue/Solution). Quy tắc parse
 đúng: lấy **toàn bộ text từ sau `📝 Detail:` cho tới ngay trước dòng `RELATED
 UI:`** làm 1 khối `detail` duy nhất, không cố tách riêng theo nhãn.
+
+⚠️ Nếu khối Detail có dòng `**Link Jira:** https://.../browse/<ID>`, parser tự
+động trích ra `jiraId` từ dòng đó (`JIRA_ID_IN_DETAIL_RE` trong
+`src/parser.js`) — dùng làm khoá đối chiếu ngược lại CSV `daily-report` (ưu tiên
+so khớp theo `jiraId` trước, chỉ dùng title/site khi ticket không có Jira ID)
+khi ghi trạng thái log ở `src/writeback.js`.
 
 ### 1.1 Ticket Đặc Biệt "Monthly Report" (Phần 3)
 
@@ -115,15 +123,12 @@ khi chọn Site) là giá trị ngẫu nhiên/lần dùng gần nhất của h�
 (`setAllPhasePics()`). Riêng Register không cần set — luôn tự động là chính
 người đang thao tác.
 
-Đã bỏ bảng BC phụ trách theo từng site (từng dùng để tra Confirmation PIC)
-— theo quyết định nghiệp vụ mới, Confirmation PIC là hằng số cố định
-"Giau Doan" cho MỌI site, không còn phân biệt theo site nữa (xem
-PHASE_PIC.confirmation trong src/config.js). Hệ quả: batch KHÔNG còn tự skip
-ticket vì lý do "site ngoài phạm vi" như trước — mọi site trong
-monthly-report.md đều được thử tạo ticket; nếu site đó không tồn tại thật
-trong popup Related UI của Blueprint, lỗi sẽ lộ ra ở bước chọn Related UI
-(Bước 1) và ticket đó rơi vào "Lỗi" trong tổng kết batch, không còn rơi vào
-"Bỏ qua" như cơ chế cũ.
+Confirmation PIC luôn cố định là "Giau Doan" cho MỌI site (không phân theo BC
+từng site) — xem `PHASE_PIC.confirmation` trong `src/config.js`. Batch KHÔNG
+skip ticket vì lý do "site ngoài phạm vi" — mọi site trong monthly-report.md
+đều được thử tạo; nếu site đó không tồn tại thật trong popup Related UI của
+Blueprint, lỗi sẽ lộ ra ở Bước 1 (chọn Related UI) và ticket rơi vào "Lỗi"
+trong tổng kết, không phải "Bỏ qua".
 
 Lưu ý: `hours` dạng thập phân (vd 2.67) phải tách thành Hours + Minutes khi
 điền form (2.67h = 2 giờ 40 phút). Dòng "Total Time: X hours" ở đầu mỗi bảng
@@ -134,7 +139,18 @@ chỉ để đối chiếu, không phải giá trị nhập trực tiếp.
 ### Bước 0 — Trang danh sách Requirement
 URL cố định: `https://blueprint.cyberlogitec.com.vn/UI_PIM_001`
 - Bộ lọc trên cùng: dropdown chọn Project, "All Iteration", "All Job Types",
-  ô ngày, ô search, checkbox "My Requirement", "Advance Search".
+  dropdown filter TRẠNG THÁI (hiện "N states"), ô search, checkbox "My
+  Requirement", "Advance Search".
+- ⚠️ **Dropdown filter trạng thái MẶC ĐỊNH chỉ chọn "In Processing"/"Open"**
+  (bỏ sót "Pending"/"Cancelled"/"Finished", xác nhận DOM thật 2026-09-26) —
+  mọi search/idempotency-check theo title sẽ KHÔNG thấy ticket đã chuyển
+  "Finished" (điển hình: ticket của tháng cũ đã xong việc) nếu không bật hết
+  trạng thái trước, dẫn tới nguy cơ tạo trùng ticket cũ. PHẢI gọi
+  `blueprint.selectAllStatuses(page)` 1 lần đầu batch (cùng lúc với
+  `selectProjectAndCategory`) và lại sau mỗi lần phục hồi lỗi (`runner.js`
+  đã làm cả 2 chỗ) — click `[view_id="stsCbb"]` mở popup rồi click label
+  `.webix_checksuggest_select_all label:has-text("Select all")` (input thật
+  bị ẩn, click thẳng vào input bị Playwright coi "not visible").
 - Cây bên trái: các module con của Project đang chọn.
 - Nút **"New Task"** để mở form tạo mới.
 - Ô search có thể gõ thẳng **mã ticket** (vd `#<số ticket>`) để lọc/tìm lại 1
@@ -388,6 +404,13 @@ xem mục 3.
   Title ở ô search trang Requirement để kiểm tra đã tồn tại chưa — hữu ích
   khi script bị lỗi/crash giữa chừng và phải chạy lại. Xem giới hạn thật ở
   mục 3.
+  ⚠️ Có 1 lớp lọc THÔ và SỚM hơn chạy TRƯỚC lớp idempotency này: trước khi gọi
+  `runBatch`, `index.js` đã lọc bỏ hết những ticket có `LOG: Y` trong file
+  `.md` (dựa field `alreadyLogged` do `src/parser.js` đọc ra) — các ticket này
+  KHÔNG được đẩy vào batch, không tốn dù chỉ 1 lượt search Blueprint nào (khác
+  hẳn với lớp idempotency search-theo-title qua `countExistingTicketsByTitle`,
+  vẫn chạy SAU đó cho những ticket còn lại). Lớp lọc `.md` này dựa hoàn toàn
+  vào field đã ghi sẵn trong file, KHÔNG xác minh lại trên Blueprint thật.
 - **Xử lý lỗi từng ticket**: nếu 1 ticket lỗi (site không tồn tại thật trong
   popup Related UI, timeout mạng, toast lỗi không mong đợi...) → ghi log lý
   do + bỏ qua ticket đó, tiếp tục ticket kế tiếp, không dừng cả batch — trừ
@@ -403,7 +426,23 @@ xem mục 3.
 
 ## 3. Hạn chế và rủi ro đã biết
 
-- **Idempotency theo title không phân biệt các THÁNG khác nhau.**
+- **Cửa sổ Chrome đôi khi bị tạo ra ở trạng thái ẨN** (`IsWindowVisible=False`
+  dù tiến trình/kích thước cửa sổ hoàn toàn bình thường) khi chạy qua
+  `run.bat` → `run-hidden.vbs` (SW_HIDE cho cửa sổ cmd) — nghi race condition
+  trong cách Windows/Chrome kế thừa trạng thái show-window từ tiến trình cha
+  bị ẩn, KHÔNG tái hiện ổn định 100% (có lần hiện đúng ngay, có lần ẩn hẳn).
+  `index.js` chủ động gọi `forceShowBrowserWindow()` (ShowWindow +
+  SetForegroundWindow qua PowerShell, tìm chrome.exe là con trực tiếp của
+  `process.pid`) ngay sau khi mở browser VÀ lại lần nữa trước khi hiện trang
+  xem trước, để không còn phụ thuộc vào hành vi kế thừa này nữa. Đã verify ổn
+  định qua nhiều lần chạy live 2026-09-26.
+- **Idempotency theo title không phân biệt các THÁNG khác nhau** khi ticket
+  CHƯA có field `BLUEPRINT:` sẵn trong .md (ticket hoàn toàn mới, chưa từng
+  search/tạo). Ticket ĐÃ có `BLUEPRINT:` (đa số ticket của các tháng cũ, sau
+  đợt backfill 2026-09-26) đi thẳng vào URL đã biết, KHÔNG qua bước search
+  theo title nữa nên không còn dính rủi ro này — xem
+  `scripts/backfill-blueprint-urls.js` nếu cần backfill thêm tháng mới sau
+  này. Rủi ro dưới đây chỉ còn áp dụng cho ticket thật sự mới:
   `countExistingTicketsByTitle` chỉ lọc theo text title trên Blueprint, không
   lọc theo tháng/ngày tạo. Nếu 1 title trùng với ticket đã tạo ở tháng trước
   (kể cả việc hoàn toàn khác), batch có thể skip nhầm ticket tháng hiện tại
@@ -493,6 +532,13 @@ xem mục 3.
 - [x] Tự động tách ticket Volume > 100 thành nhiều ticket con (`splitOversizedTicket`)
 - [x] Idempotency (`countExistingTicketsByTitle` + occurrence-index cho ticket bị tách) — xem giới hạn ở mục 3
 - [x] Chạy full batch nhiều ticket liên tiếp, tự phục hồi khi 1 ticket lỗi
+- [x] Trang xem trước + xác nhận ngay trong trình duyệt (thay console gõ Y/N)
+      — hiện đầy đủ mọi ticket parse được kèm badge LOG (Đã log/Chưa log), có
+      nút Xác nhận/Huỷ (`src/report.js` `writeReviewHtml`, đọc ở `index.js`
+      `waitForReviewDecision`)
+- [x] Hệ thống ghi ngược trạng thái LOG Y/N vào file `.md` + CSV `daily-report`
+      cùng tháng sau khi chạy batch (`src/writeback.js`, gọi từ
+      `writeBackLogStatus()` trong `index.js`)
 - [ ] Selector chính xác ô Unit Point trong `jobTypeGrid` (không chặn tiến trình)
 - [ ] Pill STATUS + cách đổi giá trị — ⚠️ nếu dùng `--status`, `setStatus()`
       throw `NotImplementedError` ngay lập tức và `runner.js` re-throw để

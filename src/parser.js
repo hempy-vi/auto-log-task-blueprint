@@ -12,6 +12,23 @@ const SPECIAL_JOB_TYPE_RE = /^JOB TYPE:\s*(.+?)\s*$/;
 const PROCESS_RE = /^PROCESS:\s*(.+?)\s*$/;
 const ITERATION_RE = /^ITERATION:\s*(.+?)\s*$/;
 const DETAIL_START_RE = /^📝\s*Detail:\s*(.*)$/;
+// ⚠️ Field MỚI: đánh dấu ticket đã log lên
+// Blueprint thành công hay chưa, để file .md có thể giữ ĐẦY ĐỦ mọi task
+// trong tháng (không bao giờ xoá task đã log khỏi file) mà vẫn phân biệt
+// được task nào cần chạy tiếp. Dòng này KHÔNG bắt buộc phải có sẵn trong
+// file (file cũ trước tính năng này không có) — thiếu thì mặc định coi như
+// "N" (chưa log).
+const LOG_STATUS_RE = /^LOG:\s*(.+?)\s*$/;
+// Field MỚI: URL(s) Blueprint thật của ticket này (nếu đã tạo, kể cả tạo dở
+// dang chưa xong Time Worked/Effort Point) — nhiều URL cách nhau bởi ", " khi
+// ticket gốc bị splitOversizedTicket() tách thành nhiều ticket con (mỗi con 1
+// URL riêng, cùng chia sẻ 1 dòng BLUEPRINT: ở block gốc). Có field này giúp
+// runner.js đi thẳng vào URL đã biết thay vì phải search lại trên Blueprint.
+const BLUEPRINT_URL_RE = /^BLUEPRINT:\s*(.+?)\s*$/;
+// Trích Jira ID từ khối Detail (do /monthly-report sinh ra dòng "**Link
+// Jira:** https://.../browse/<ID>" khi ticket có Jira ID) — dùng làm khoá
+// đối chiếu ngược lại CSV nguồn (daily-report) khi cập nhật trạng thái log.
+const JIRA_ID_IN_DETAIL_RE = /Link Jira:\*{0,2}\s*https?:\/\/\S*\/browse\/([A-Za-z]+-\d+)/i;
 
 // Bỏ dòng phân cách markdown table kiểu |---|---|---|
 function isTableSeparator(line) {
@@ -152,14 +169,21 @@ function parseRegularTicketBlock(blockLines, siteFromHeader) {
 
   let process = '';
   let iteration = '';
+  let logStatusRaw = 'N'; // mặc định "chưa log" nếu file cũ không có dòng LOG:
+  let blueprintUrls = [];
   for (const line of blockLines) {
     const pm = PROCESS_RE.exec(line);
     if (pm) process = pm[1].trim();
     const im = ITERATION_RE.exec(line);
     if (im) iteration = im[1].trim();
+    const lm = LOG_STATUS_RE.exec(line);
+    if (lm) logStatusRaw = lm[1].trim();
+    const bm = BLUEPRINT_URL_RE.exec(line);
+    if (bm) blueprintUrls = bm[1].split(',').map((u) => u.trim()).filter(Boolean);
   }
 
   const detail = extractDetail(blockLines, RELATED_UI_RE);
+  const jiraMatch = JIRA_ID_IN_DETAIL_RE.exec(detail);
 
   return {
     type: 'regular',
@@ -169,6 +193,10 @@ function parseRegularTicketBlock(blockLines, siteFromHeader) {
     process,
     iteration,
     detail,
+    jiraId: jiraMatch ? jiraMatch[1] : null,
+    alreadyLogged: /^Y$/i.test(logStatusRaw),
+    blueprintUrls,
+    blueprintUrl: blueprintUrls[0] || null,
     effortPoints: extractEffortPoints(blockLines),
     timeWorked: extractTimeWorked(blockLines),
   };
@@ -225,17 +253,14 @@ function splitEvenly(total, count) {
 }
 
 /**
- * Theo yêu cầu của Huy (2026-08-29, xem config.CONSTANTS.maxVolumePerTicket):
- * 1 ticket không được vượt quá Volume 100 — lý do nghiệp vụ, không phải giới
- * hạn kỹ thuật (Blueprint vẫn chấp nhận Volume lớn hơn bình thường). Ticket
- * có 1 dòng Effort Point với Volume > 100 được TỰ ĐỘNG tách thành nhiều
- * ticket giống hệt nhau (title, detail, site, jobType, process, iteration) —
- * chỉ khác Effort Point (Volume chia đều bằng `splitEvenly()`, luôn ≤
- * maxVolume, luôn cộng lại đúng volume gốc) và Time Worked (chia đều SỐ DÒNG
- * theo đúng thứ tự file, cùng dùng `splitEvenly()` — phần dư có thể 0 dòng,
- * không lỗi). Không cố khớp Volume theo cột Point của Time Worked — chấp
- * nhận được vì Point là DỮ LIỆU CHẾT (Blueprint tự tính lại khi Save, xem
- * WORKFLOW.md mục 2.5 lỗi #8).
+ * 1 ticket không được vượt quá Volume 100 (config.CONSTANTS.maxVolumePerTicket)
+ * — giới hạn nghiệp vụ, không phải kỹ thuật (Blueprint vẫn chấp nhận Volume
+ * lớn hơn). Ticket có 1 dòng Effort Point Volume > 100 được tự động tách
+ * thành nhiều ticket giống hệt nhau (title, detail, site, jobType, process,
+ * iteration), chỉ khác Effort Point (Volume chia đều bằng `splitEvenly()`,
+ * luôn ≤ maxVolume, tổng khớp volume gốc) và Time Worked (chia đều số dòng
+ * theo thứ tự file, cùng dùng `splitEvenly()`). Không cố khớp Volume theo cột
+ * Point của Time Worked vì Point là dữ liệu Blueprint tự tính lại khi Save.
  */
 function splitOversizedTicket(ticket, maxVolume = CONSTANTS.maxVolumePerTicket) {
   if (ticket.effortPoints.length !== 1) return [ticket]; // chỉ xử lý ca phổ biến nhất
@@ -264,6 +289,10 @@ function splitOversizedTicket(ticket, maxVolume = CONSTANTS.maxVolumePerTicket) 
       ...ticket,
       timeWorked: groupRows,
       effortPoints: [{ ...ep, volume, total: ep.unitPoint * volume }],
+      // Mỗi ticket con là 1 ticket THẬT riêng trên Blueprint -> lấy đúng URL
+      // thứ i trong danh sách (nếu có sẵn từ dòng BLUEPRINT:), không phải cả
+      // mảng dùng chung.
+      blueprintUrl: (ticket.blueprintUrls || [])[i] || null,
     };
   });
 }
@@ -301,6 +330,7 @@ function parseMonthlyReport(filePath) {
     boundaries.push({ idx: regularLines.length, kind: 'end' });
 
     let currentSite = null;
+    let blockIndex = 0;
     for (let b = 0; b < boundaries.length; b += 1) {
       const cur = boundaries[b];
       if (cur.kind === 'site') {
@@ -308,16 +338,26 @@ function parseMonthlyReport(filePath) {
         continue;
       }
       if (cur.kind === 'title') {
-        // ⚠️ Dừng ở đúng boundary KẾ TIẾP (bất kể 'site' hay 'title' hay
-        // 'end') — trước đây bỏ qua boundary 'site' để tìm 'title'/'end' tiếp
-        // theo, khiến blockLines "nuốt" luôn dòng header site đứng ngay sau
-        // ticket cuối cùng của mỗi nhóm site (hên là dòng đó không khớp bất
-        // kỳ regex trích xuất field nào nên chưa gây sai field trên thực tế,
-        // nhưng vẫn là tính sai boundary). currentSite vẫn cập nhật đúng ở
-        // nhánh 'site' phía trên, không phụ thuộc vào end của ticket này.
+        // ⚠️ Dừng ở đúng boundary KẾ TIẾP (bất kể 'site', 'title' hay 'end')
+        // — nếu bỏ qua boundary 'site' để tìm tiếp 'title'/'end', blockLines
+        // sẽ nuốt luôn dòng header site đứng ngay sau ticket cuối của mỗi
+        // nhóm site. currentSite vẫn cập nhật đúng ở nhánh 'site' phía trên,
+        // không phụ thuộc end của ticket này.
         const end = b + 1 < boundaries.length ? boundaries[b + 1].idx : regularLines.length;
         const blockLines = regularLines.slice(cur.idx, end);
-        tickets.push(parseRegularTicketBlock(blockLines, currentSite));
+        const ticket = parseRegularTicketBlock(blockLines, currentSite);
+        // `blockIndex`/`sourceLineStart`/`sourceLineEnd` dùng để GHI NGƯỢC
+        // trạng thái log vào đúng vị trí trong file .md gốc sau khi chạy
+        // batch (xem src/writeback.js) — không phải dữ liệu nghiệp vụ, chỉ
+        // là toạ độ nội bộ. Ticket bị splitOversizedTicket() tách thành
+        // nhiều ticket con vẫn giữ NGUYÊN các trường này (spread `...ticket`
+        // trong splitOversizedTicket sao chép lại) vì chúng cùng trỏ về 1
+        // block gốc duy nhất trong file .md.
+        ticket.blockIndex = blockIndex;
+        ticket.sourceLineStart = cur.idx;
+        ticket.sourceLineEnd = end;
+        tickets.push(ticket);
+        blockIndex += 1;
       }
     }
   }
@@ -330,10 +370,9 @@ function parseMonthlyReport(filePath) {
   // parseMonthlyReport() (dry-run, runner.js) đều thấy danh sách đã tách sẵn,
   // không cần sửa gì thêm ở nơi khác.
   const splitTickets = tickets.flatMap((t) => splitOversizedTicket(t));
-  // ⚠️ Ticket đặc biệt (Monthly Report) trước đây KHÔNG được tách khi > 100
-  // Volume — lỗ hổng thật (gộp cả tháng Meeting/Sync vào 1 dòng Effort Point
-  // hoàn toàn có thể vượt 100). Áp dụng CÙNG hàm tách, luôn trả về MẢNG
-  // (rỗng nếu không có ticket đặc biệt) để không bỏ sót trường hợp này.
+  // ⚠️ Ticket đặc biệt (Monthly Report) cũng phải qua splitOversizedTicket
+  // khi Volume > 100 (gộp nhiều Meeting/Sync có thể vượt giới hạn) — trả về
+  // mảng specialTickets (rỗng nếu không có ticket đặc biệt).
   const specialTickets = specialTicket ? splitOversizedTicket(specialTicket) : [];
 
   // Guard chống lỗi im lặng: file không đúng định dạng monthly-report.md

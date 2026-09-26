@@ -31,6 +31,18 @@ module.exports = {
       '#UI_PIM_001Body > div > div:nth-child(2) > div:nth-child(3) > div > div:nth-child(4) > div.webix_view.webix_layout_line > div:nth-child(2) > div > button',
     searchInput: '[placeholder="Requirement Name, Content, Ticket Number"]',
     searchButton: 'button:has-text("Search")',
+    // ⚠️ Dropdown filter trạng thái (hiện text "N states", mặc định CHỈ chọn
+    // "In Processing"/"Open" — bỏ sót "Pending"/"Cancelled"/"Finished") — đã
+    // xác nhận DOM thật 2026-09-26: search/idempotency check theo title sẽ
+    // KHÔNG thấy ticket đã "Finished" nếu không bật hết trạng thái trước, dẫn
+    // tới nguy cơ tạo trùng ticket cũ đã hoàn tất. Phải gọi
+    // blueprintActions.selectAllStatuses() 1 lần đầu batch, cùng lúc với
+    // selectProjectAndCategory().
+    statusMultiCombo: '[view_id="stsCbb"]',
+    // ⚠️ Input thật `[aria-label="Select all"]` bị ẩn (visibility ẩn, icon +
+    // label hiển thị đè lên) — click thẳng vào input bị Playwright coi là
+    // "not visible" dù có tồn tại trong DOM. Phải click vào label hiển thị.
+    statusSelectAllCheckbox: '.webix_checksuggest_select_all label:has-text("Select all")',
     // ⚠️ PHẢI dùng text KHỚP CHÍNH XÁC (có ngoặc kép) — `text=${text}` không
     // ngoặc kép sẽ khớp THEO SUBSTRING (đã xác nhận qua review: các site có
     // tên lồng nhau như "Samil"/"Samil Textile", "Dongil"/"Dongil Rubber",

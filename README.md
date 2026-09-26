@@ -1,6 +1,6 @@
 # auto-log-task-blueprint
 
-Tool Node.js + Playwright tự động log Task từ `monthly-report/*.md` lên hệ
+Tool Node.js + Playwright tự động log Task từ `work-reports/*.md` lên hệ
 thống Blueprint (CyberLogitec). Đặc tả nghiệp vụ đầy đủ nằm ở
 [WORKFLOW.md](./WORKFLOW.md) — đọc file đó trước khi sửa code, đặc biệt mục 3
 (hạn chế/rủi ro đã biết) và mục 4 (checklist tình trạng implement).
@@ -14,7 +14,9 @@ src/selectors.js         TOÀN BỘ CSS selector thật -- đã xác nhận qua 
 src/blueprintActions.js  hành động Playwright trên hệ thống Blueprint (Bước 0 -> Bước 5)
 src/runner.js            chạy batch nhiều ticket, chống trùng, tự phục hồi khi 1 ticket lỗi, tổng kết
 src/loadEnv.js           nạp file .env (username/password đăng nhập)
-src/report.js            sinh trang HTML báo cáo kết quả (cùng phong cách assets/splash.html)
+src/report.js            sinh trang XEM TRƯỚC (chọn Năm/Tháng, Bảng Summary, cột Jira/Blueprint link, badge Log/Tạo dở, nút Xác nhận/Huỷ) VÀ trang BÁO CÁO KẾT QUẢ sau batch (cùng phong cách assets/splash.html)
+src/writeback.js         ghi ngược trạng thái log (LOG: Y/N) + URL Blueprint thật (BLUEPRINT:) vào .md, cột Log Status + Blueprint URL vào CSV <yyyymm>_daily-report.csv sau khi chạy batch
+scripts/backfill-blueprint-urls.js  tìm lại URL Blueprint cho ticket đã log ở tháng cũ (trước khi field BLUEPRINT: tồn tại) -- search theo title, đối chiếu Effort Point Total để gán đúng URL khi có nhiều ticket trùng title
 scripts/smoke-test.js              điền form New Task bằng dữ liệu giả, KHÔNG Submit -- test nhanh selector/login còn sống không
 scripts/test-create-real-task.js   tạo THẬT 1 ticket + hoàn tất Job Detail luôn (theo TICKET_TITLE/REPORT_FILE)
 scripts/test-run-one-ticket.js     chạy đúng runner.js thật nhưng CHỈ 1 ticket, dừng lại trước ticket kế tiếp -- QC pipeline
@@ -24,8 +26,8 @@ scripts/test-set-effort-register.js  chạy lại riêng bước "100% Effort Po
 scripts/complete-tickets-by-title.js hoàn tất Job Detail cho NHIỀU ticket đã tạo sẵn cùng lúc (theo TICKET_URLS JSON + REPORT_FILE)
 index.js                 CLI entry point
 setup.bat                (Windows) cài dependency + tạo .env lần đầu
-run.bat                  (Windows) dry-run -> xác nhận -> chạy thật (hoặc chạy ẩn qua run-hidden.vbs, xem bên dưới)
-run-hidden.vbs           (Windows) chạy AN hoàn toàn (không cửa sổ) -- BỎ QUA dry-run/xác nhận
+run.bat                  (Windows) tự relaunch ẨN qua run-hidden.vbs -- xem bên dưới
+run-hidden.vbs           (Windows) chạy run.bat ẨN HOÀN TOÀN (không cửa sổ, không icon taskbar)
 ```
 
 ## Cài đặt (Windows — nhanh)
@@ -42,37 +44,43 @@ Chromium cho Playwright, tự tạo `.env` từ `.env.example` nếu chưa có. 
 ## Chạy (Windows — nhanh)
 
 ```
-run.bat monthly-report\202607_monthly-report.md
+run.bat work-reports\202607_monthly-report.md
 ```
 
 Hoặc không cần truyền gì cả — đặt `MONTH=202609` (ví dụ) trong `.env`, tool tự
-suy ra file `monthly-report\202609_monthly-report.md`:
+suy ra file `work-reports\202609_monthly-report.md`:
 
 ```
 run.bat
 ```
 
-Tự động: (1) chạy dry-run in ra danh sách ticket đã parse để kiểm tra trước
-(title trùng lặp, sai site/job type...), (2) hỏi xác nhận (gõ `Y`), (3) chỉ
-khi xác nhận mới mở trình duyệt thật và tạo ticket. **Luôn đọc kỹ danh sách
-dry-run trước khi gõ Y** — đây là hành động thật, tạo ticket thật trên
-production, không dễ hoàn tác. Sau khi chạy thật xong, báo cáo kết quả tự mở
-ngay trên trình duyệt Playwright đang chạy — cửa sổ `run.bat` tự đóng khi bạn
-đóng trình duyệt đó (không cần bấm phím gì thêm).
+`run.bat` **luôn chạy ẩn hoàn toàn** (không cửa sổ cmd nào hiện ra, kể cả
+thoáng qua) — tự relaunch chính nó qua `run-hidden.vbs` rồi thoát ngay lập
+tức. Toàn bộ tương tác (xem trước danh sách ticket, xác nhận, xem báo cáo)
+diễn ra **trong trình duyệt**, không còn console nào để gõ `Y`/đọc log nữa:
 
-### Chạy ẩn (không hiện cửa sổ cmd nào)
+1. Trình duyệt tự mở, chạy màn hình chào rồi **tự đăng nhập** ngay (để link
+   Blueprint ở bước sau bấm được luôn, không bị bung màn hình login Keycloak
+   trơ trọi).
+2. Hiện trang **xem trước**, quét toàn bộ file `work-reports/*_monthly-report.md`
+   có sẵn — chọn **Năm/Tháng** ở đầu trang (mặc định tháng gần nhất), xem
+   Bảng Summary + 2 bảng "Chưa log"/"Đã log trước đó" (title, site, job type,
+   Jira, Effort Point, Time Worked, link **Blueprint** — ticket "tạo dở"
+   (Submit thành công nhưng lỗi giữa chừng) có badge "🔧 Tạo dở — sẽ tự hoàn
+   tất") — đọc kỹ trước khi bấm.
+3. Bấm **"✓ Xác nhận — bắt đầu Log"** để chạy batch cho ĐÚNG tháng đang chọn
+   ở dropdown (tạo ticket THẬT trên production), hoặc **"✕ Huỷ, không log gì
+   cả"** / đóng thẳng trình duyệt để dừng lại.
+4. Sau khi xác nhận: chạy batch (giao diện Blueprint thật hiện ra như bình
+   thường) → trang **báo cáo kết quả** (thống kê + danh sách chi tiết Thành
+   công/Bỏ qua/Lỗi).
+5. Đóng trình duyệt khi xem xong — tiến trình chạy nền (đang ẩn) tự thoát
+   sạch ngay sau đó, không cần thao tác gì thêm.
 
-```
-wscript run-hidden.vbs monthly-report\202609_monthly-report.md
-```
-
-Chạy **thẳng luôn**, KHÔNG dry-run, KHÔNG hỏi xác nhận — vì không có console
-để xem/gõ `Y`. Chỉ dùng khi đã tự kiểm tra dữ liệu đúng bằng dry-run công khai
-trước đó (`node index.js --dry-run --report ...`, hoặc `run.bat` thường).
-stdout/stderr được ghi vào `logs/run-last.log` để đối chiếu sau. Trình duyệt
-Playwright vẫn mở (không ẩn được — Chromium cần cửa sổ để chạy), chỉ có cửa sổ
-cmd đứng sau là ẩn; báo cáo tự mở trên trình duyệt đó khi chạy xong, tiến
-trình Node tự thoát sạch khi bạn đóng trình duyệt.
+stdout/stderr (log kỹ thuật, không phải nơi xác nhận) được ghi vào
+`logs/run-last.log` để đối chiếu khi cần debug (file này là UTF-8 — nếu mở
+bằng PowerShell `Get-Content` phải thêm `-Encoding UTF8`, còn mở bằng VS
+Code/Notepad hiện đại thì tự nhận đúng, không cần làm gì thêm).
 
 ## Cài đặt / chạy thủ công (không dùng .bat, hoặc không phải Windows)
 
@@ -82,7 +90,7 @@ npx playwright install chromium
 ```
 
 ```
-node index.js --dry-run --report ./monthly-report/202607_monthly-report.md
+node index.js --dry-run --report ./work-reports/202607_monthly-report.md
 ```
 
 In ra danh sách ticket đã parse được kèm site, job type, số dòng Effort
@@ -91,7 +99,7 @@ monthly-report để phát hiện sớm title trùng lặp, sai site/job type, v
 trước khi đụng tới trình duyệt thật.
 
 ```
-node index.js --report ./monthly-report/202607_monthly-report.md
+node index.js --report ./work-reports/202607_monthly-report.md
 ```
 
 - Due Date: KHÔNG cần truyền gì — mỗi ticket dùng nguyên giá trị MẶC ĐỊNH mà
@@ -106,9 +114,15 @@ node index.js --report ./monthly-report/202607_monthly-report.md
   Worked/Effort Point thành công trên production trước đó (bị ghi nhận nhầm
   thành "lỗi" trong tổng kết). Xem WORKFLOW.md mục 4.
 
-Trình duyệt sẽ mở lên và tự đăng nhập bằng `BLUEPRINT_USERNAME`/`BLUEPRINT_PASSWORD`
-trong `.env`. Nếu đăng nhập tự động lỗi, tool tự chuyển sang chờ bạn đăng nhập
-thủ công, nhấn Enter ở terminal để chạy tiếp.
+Trình duyệt mở lên, hiện **trang xem trước** danh sách ticket kèm 2 nút Xác
+nhận/Huỷ (xem mục "Chạy (Windows — nhanh)" ở trên — hành vi giống hệt dù chạy
+qua `run.bat` hay gọi `node index.js` trực tiếp, vì bước này nằm trong
+`index.js`, không phải trong `.bat`). Sau khi xác nhận, tool tự đăng nhập bằng
+`BLUEPRINT_USERNAME`/`BLUEPRINT_PASSWORD` trong `.env`. Nếu đăng nhập tự động
+lỗi, tool tự chuyển hẳn sang trang đăng nhập Keycloak và **tự chờ** (không
+cần bấm gì ở terminal) tới khi bạn đăng nhập tay xong — nhận biết bằng việc
+trình duyệt tự điều hướng về lại đúng domain Blueprint sau khi Keycloak xác
+thực thành công.
 
 Mỗi ticket trải qua đủ 5 bước tự động: tạo task (New Task form) → Submit →
 mở Detail ở tab mới → nhập Time Worked → nhập Effort Point → chỉnh lại Effort
@@ -123,9 +137,9 @@ cũng lỗi, hoặc trình duyệt bị crash hẳn.
 node scripts/smoke-test.js
 TICKET_URL=<url ticket> node scripts/test-set-effort-register.js
 TICKET_URL=<url ticket> TICKET_TITLE="<title đúng trong monthly-report>" node scripts/test-full-job-detail.js
-TICKET_TITLE="<title>" REPORT_FILE=./monthly-report/<file>.md node scripts/test-create-real-task.js
-TICKET_TITLE="<title>" REPORT_FILE=./monthly-report/<file>.md node scripts/test-run-one-ticket.js
-REPORT_FILE=./monthly-report/<file>.md TICKET_URLS='{"<title>":"<url>"}' node scripts/complete-tickets-by-title.js
+TICKET_TITLE="<title>" REPORT_FILE=./work-reports/<file>.md node scripts/test-create-real-task.js
+TICKET_TITLE="<title>" REPORT_FILE=./work-reports/<file>.md node scripts/test-run-one-ticket.js
+REPORT_FILE=./work-reports/<file>.md TICKET_URLS='{"<title>":"<url>"}' node scripts/complete-tickets-by-title.js
 ```
 
 Dùng khi 1 ticket bị lỗi giữa batch và cần làm lại riêng lẻ, không muốn chạy

@@ -11,7 +11,8 @@ const { parseMonthlyReport } = require('../src/parser');
 
 const TICKET_URL = process.env.TICKET_URL || 'https://blueprint.cyberlogitec.com.vn/UI_PIM_001_1/PRQ20260829000000076';
 const TICKET_TITLE = process.env.TICKET_TITLE || 'Delete Specific Bales';
-const REPORT_FILE = process.env.REPORT_FILE || './monthly-report/202607_monthly-report.md';
+const REPORT_FILE = process.env.REPORT_FILE || (process.env.MONTH && `./work-reports/${process.env.MONTH}_monthly-report.md`);
+if (!REPORT_FILE) throw new Error('Thiếu REPORT_FILE hoặc MONTH trong .env.');
 const SHOT = process.env.SHOT_OUT || 'test-full-job-detail.png';
 
 function waitForEnter(promptText) {

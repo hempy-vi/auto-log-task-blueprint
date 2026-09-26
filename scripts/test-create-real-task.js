@@ -11,7 +11,8 @@ const { parseMonthlyReport } = require('../src/parser');
 const SEL = require('../src/selectors');
 
 const TICKET_TITLE = process.env.TICKET_TITLE || 'Remove Incorrect Bale ID';
-const REPORT_FILE = process.env.REPORT_FILE || './monthly-report/202607_monthly-report.md';
+const REPORT_FILE = process.env.REPORT_FILE || (process.env.MONTH && `./work-reports/${process.env.MONTH}_monthly-report.md`);
+if (!REPORT_FILE) throw new Error('Thiếu REPORT_FILE hoặc MONTH trong .env.');
 
 function waitForEnter(promptText) {
   return new Promise((resolve) => {

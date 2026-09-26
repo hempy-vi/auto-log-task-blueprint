@@ -36,18 +36,11 @@ function escapeHtml(s) {
 }
 
 /**
- * Đổi Detail (markdown nhẹ: chỉ `**bold**` + dòng trống = ngắt đoạn) sang
- * HTML thật để PASTE trực tiếp vào CKEditor — KHÔNG gõ từng ký tự
- * (pressSequentially) như trước. ĐÃ XÁC NHẬN THẬT trên ticket production
- * (#3635): khi gõ từng ký tự, CKEditor tự bắt cặp BẤT KỲ 2 dấu "_" nào trong
- * toàn đoạn văn thành in nghiêng rồi ăn mất cả 2 dấu — không cần cùng 1 từ,
- * miễn còn dấu "_" nào đó phía sau trong đoạn văn là bắt cặp luôn (vd
- * "SP_SEL_BIAS00011" -> "SP" + *SEL* nghiêng + "BIAS00011" hiển thị dính liền
- * "SPSELBIAS00011"; 2 lần xuất hiện "stock_qty" cách nhau cả câu cũng bị bắt
- * cặp chéo với nhau). Đây là do tính năng autoformat-khi-gõ của CKEditor,
- * CHỈ kích hoạt khi gõ thật (typing), KHÔNG kích hoạt khi paste — nên paste
- * HTML thật (dùng `<strong>` cho in đậm) né được hoàn toàn lỗi này mà vẫn giữ
- * đúng định dạng đậm mong muốn.
+ * Đổi Detail markdown nhẹ sang HTML thật để PASTE vào CKEditor thay vì gõ
+ * từng ký tự (pressSequentially) — CKEditor tự bắt cặp bất kỳ 2 dấu "_" nào
+ * trong cả đoạn văn thành in nghiêng khi gõ thật (autoformat-khi-gõ), làm sai
+ * nội dung (vd "SP_SEL_BIAS00011" bị nuốt mất dấu gạch dưới). Lỗi này KHÔNG
+ * xảy ra khi paste, nên dùng paste HTML (`<strong>` cho đậm) để né hoàn toàn.
  */
 function detailMarkdownToHtml(detail) {
   return detail
@@ -127,6 +120,24 @@ async function selectProjectAndCategory(page) {
 }
 
 /**
+ * Bật hết checkbox trạng thái ở filter "N states" (mặc định chỉ "In
+ * Processing"/"Open", bỏ sót "Pending"/"Cancelled"/"Finished") — PHẢI gọi
+ * trước khi search/đếm ticket theo title, nếu không mọi ticket đã chuyển
+ * "Finished" (điển hình: ticket của các tháng cũ đã xong việc) sẽ KHÔNG được
+ * tìm thấy, dẫn tới nguy cơ tạo trùng. Đóng lại popup bằng phím Escape sau
+ * khi chọn xong (không có nút "Apply/OK" tường minh, multicombo tự áp dụng
+ * ngay khi tick).
+ */
+async function selectAllStatuses(page) {
+  await page.click(assertReady(SEL.requirementList.statusMultiCombo, 'requirementList.statusMultiCombo', 'Bước 0'));
+  await page.waitForTimeout(400);
+  await page.click(assertReady(SEL.requirementList.statusSelectAllCheckbox, 'requirementList.statusSelectAllCheckbox', 'Bước 0'));
+  await page.waitForTimeout(300);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+}
+
+/**
  * Đếm số ticket ĐÃ TỒN TẠI có title khớp CHÍNH XÁC — dùng cho idempotency
  * check (Bước 6). Trả về SỐ LƯỢNG (không phải boolean) vì 1 ticket gốc có
  * Volume > 100 bị tách thành nhiều ticket con CÙNG title (xem
@@ -185,11 +196,11 @@ async function setRelatedUiSite(page, site) {
   await page.click(assertReady(SEL.newTaskForm.relatedUiEditButton, 'newTaskForm.relatedUiEditButton', 'Bước 1/2'));
   // Popup "Related UI" đã xác nhận: 1 popup duy nhất, cây checkbox liệt kê
   // sẵn toàn bộ site kể cả chưa gõ tìm — gõ vào ô search để lọc bớt.
-  // ⚠️ page.fill() KHÔNG kích hoạt search-as-you-type của Webix (đã xác nhận
-  // thật: danh sách không lọc lại, phải click theo text trong cây CHƯA lọc —
-  // vẫn chọn đúng vì Playwright tìm theo text bất kể có lọc hay không, nhưng
-  // rủi ro nếu cây bị ảo hoá/scroll ẩn với danh sách site dài). Dùng
-  // pressSequentially() để gõ từng ký tự thật, kích hoạt đúng sự kiện lọc.
+  // ⚠️ page.fill() không kích hoạt search-as-you-type của Webix (danh sách
+  // không lọc lại) — phải click theo text trong cây chưa lọc (vẫn đúng vì
+  // Playwright tìm theo text bất kể lọc hay không, nhưng rủi ro nếu cây bị ảo
+  // hoá/cuộn với site list dài). Dùng pressSequentially() để gõ từng ký tự
+  // thật, kích hoạt đúng sự kiện lọc.
   const programNameInput = assertReady(
     SEL.inquiryProgramPopup.programNameInput,
     'inquiryProgramPopup.programNameInput',
@@ -242,9 +253,9 @@ async function fillNewTaskForm(page, ticket) {
     'newTaskForm.iteration.staticDisplay'
   );
 
-  // ⚠️ KHÔNG chủ động set Due Date nữa (theo yêu cầu của Huy 2026-08-29) — cứ
-  // để nguyên giá trị MẶC ĐỊNH mà popup tự hiển thị khi mở form. `submitNewTask`
-  // sẽ tự đọc lại giá trị này và cộng thêm ngày nếu gặp toast cảnh báo.
+  // ⚠️ KHÔNG chủ động set Due Date — để nguyên giá trị mặc định popup hiển
+  // thị khi mở form; submitNewTask sẽ tự đọc lại và cộng thêm ngày nếu gặp
+  // toast cảnh báo.
 
   await setRelatedUiSite(page, ticket.site);
 
@@ -309,9 +320,8 @@ async function pickCalendarDate(page, isoDate) {
 }
 
 /**
- * Set DUE DATE (popup lịch calendar-grid, đã xác nhận cấu trúc thật). Giờ
- * (dueTime) KHÔNG cần set — theo xác nhận của Huy, giá trị mặc định của form
- * (17:30) đã dùng được, không cần đụng tới.
+ * Set DUE DATE qua popup lịch calendar-grid. Giờ (dueTime) không cần set —
+ * giá trị mặc định 17:30 của form dùng được, không cần đụng tới.
  */
 async function setDueDateAndTime(page, isoDate) {
   const staticDisplay = assertReady(SEL.newTaskForm.dueDate.staticDisplay, 'newTaskForm.dueDate.staticDisplay', 'Bước 1');
@@ -346,10 +356,10 @@ async function readDisplayedDueDateIso(page) {
 
 /**
  * Bấm Submit, xử lý 2 loại toast cảnh báo Due Date nếu xuất hiện (có thể lặp
- * lại). Lần Submit ĐẦU TIÊN dùng nguyên Due Date mặc định — không tự set
- * trước (theo yêu cầu của Huy 2026-08-29, xem fillNewTaskForm). Chỉ khi gặp
- * toast cảnh báo mới đọc lại ngày ĐANG HIỂN THỊ, cộng thêm 1 ngày rồi thử
- * lại — lặp cho tới khi hết lỗi hoặc hết `maxRetries`.
+ * lại). Lần Submit đầu tiên dùng nguyên Due Date mặc định — không tự set
+ * trước (xem fillNewTaskForm). Chỉ khi gặp toast cảnh báo mới đọc lại ngày
+ * đang hiển thị, cộng thêm 1 ngày rồi thử lại, lặp tới khi hết lỗi hoặc hết
+ * `maxRetries`.
  */
 async function submitNewTask(page, maxRetries = 5) {
   let currentDueDate = null; // chỉ đọc từ DOM khi thật sự cần (lần đầu gặp toast)
@@ -389,18 +399,13 @@ async function submitNewTask(page, maxRetries = 5) {
     }
 
     if (!toastAppeared) {
-      // ⚠️ "Không có toast cảnh báo" KHÔNG ĐỦ để kết luận Submit thành công —
-      // đã gặp thật: 1 lần bấm Submit không có toast nào hiện ra, hàm vẫn
-      // trả về "thành công", nhưng ticket KHÔNG HỀ được tạo (kiểm tra lại
-      // toàn bộ danh sách không thấy) — có thể do click Submit không thật sự
-      // đăng ký (timing/UI chưa sẵn sàng). Xác nhận thêm: popup New Task phải
-      // THẬT SỰ đóng (theo hành vi đã xác nhận: Submit thành công -> popup tự
-      // đóng) trước khi tin là xong.
-      // ⚠️ Timeout 12s (không phải 5s) — nếu server xử lý Submit chậm hơn 5s
-      // (mạng chậm/tải cao), kết luận nhầm "click chưa đăng ký" rồi bấm
-      // Submit LẦN NỮA trong khi request đầu vẫn đang xử lý có thể tạo TRÙNG
-      // 2 ticket cho cùng 1 lần Submit. 12s không loại bỏ hoàn toàn rủi ro
-      // này nhưng giảm đáng kể khả năng xảy ra.
+      // ⚠️ "Không có toast cảnh báo" không đủ để kết luận Submit thành công —
+      // click có thể không đăng ký được (timing/UI chưa sẵn sàng) khiến
+      // ticket không được tạo dù không báo lỗi. Phải xác nhận thêm: popup New
+      // Task đã thật sự đóng trước khi tin là xong. Timeout dùng 12s (không
+      // phải 5s) vì nếu server xử lý chậm hơn, kết luận nhầm rồi bấm Submit
+      // lần nữa trong khi request đầu còn xử lý có thể tạo trùng 2 ticket —
+      // 12s giảm đáng kể rủi ro này nhưng không loại bỏ hoàn toàn.
       const modalClosed = await page
         .locator(assertReady(SEL.newTaskForm.titleInput, 'newTaskForm.titleInput', 'Bước 1'))
         .waitFor({ state: 'hidden', timeout: 12000 })
@@ -490,18 +495,108 @@ async function openJobDetailModal(page) {
   });
 }
 
+/**
+ * Đọc trạng thái ĐÃ CÓ SẴN của 1 ticket (Job Detail modal đang mở) — dùng để
+ * biết ticket này đã hoàn tất Time Worked/Effort Point hay còn "tạo dở"
+ * (Submit thành công nhưng lỗi giữa chừng trước khi kịp nhập gì, xem
+ * runner.js). Đọc tab Effort Point trước (mặc định đang mở), rồi CHUYỂN QUA
+ * tab Time Worked đếm số dòng, rồi chuyển LẠI Effort Point để không đổi
+ * trạng thái UI so với lúc gọi hàm (tránh ảnh hưởng addAllEffortPoints/
+ * addAllTimeWorked gọi ngay sau đó nếu cần bổ sung).
+ */
+async function getJobDetailTotals(page) {
+  await page.click(assertReady(SEL.jobDetailModal.effortPointTab, 'jobDetailModal.effortPointTab', 'Bước 3'), {
+    force: true,
+  });
+  await page.waitForTimeout(300);
+  const totalText = await page
+    .locator(assertReady(SEL.jobDetailModal.effortPoint.totalPointDisplay, 'jobDetailModal.effortPoint.totalPointDisplay', 'Bước 3'))
+    .textContent()
+    .catch(() => '0');
+  const effortPointTotal = parseFloat((totalText || '').replace(/[^\d.]/g, '')) || 0;
+
+  await page.click(assertReady(SEL.jobDetailModal.timeWorkedTab, 'jobDetailModal.timeWorkedTab', 'Bước 3'), {
+    force: true,
+  });
+  await page.waitForTimeout(300);
+  // ⚠️ Đã verify DOM thật: dòng dữ liệu trong bảng Time Worked KHÔNG dùng
+  // `role="row"` (chỉ header/footer webix dùng role đó) — mỗi dòng dữ liệu là
+  // 1 `[role="gridcell"][aria-colindex="1"]` (cột PIC, luôn có ở mọi dòng).
+  const timeWorkedCount = await page
+    .locator(assertReady(SEL.jobDetailModal.timeWorked.table, 'jobDetailModal.timeWorked.table', 'Bước 3'))
+    .locator('[role="gridcell"][aria-colindex="1"]')
+    .count()
+    .catch(() => 0);
+
+  await page.click(assertReady(SEL.jobDetailModal.effortPointTab, 'jobDetailModal.effortPointTab', 'Bước 3'), {
+    force: true,
+  });
+  await page.waitForTimeout(300);
+
+  return { effortPointTotal, timeWorkedCount };
+}
+
+/**
+ * Tìm ticket ĐÃ TỒN TẠI theo title CHÍNH XÁC, trả về URL THẬT + số liệu Job
+ * Detail hiện có (effortPointTotal, timeWorkedCount) của MỖI ticket khớp —
+ * dùng cho backfill (tìm lại link Blueprint cho các task đã log ở tháng cũ,
+ * trước khi tính năng lưu URL này tồn tại). Trả kèm cả totals (không chỉ
+ * URL) vì title trùng nhau CÓ THỂ ứng với NHIỀU ticket khác nhau (ticket bị
+ * splitOversizedTicket() tách thành nhiều ticket con cùng title, mỗi con
+ * Volume khác nhau — hoặc hiếm hơn, 2 ticket không liên quan tình cờ trùng
+ * title) — bên gọi cần totals để ĐỐI CHIẾU đúng ticket con nào khớp URL nào
+ * theo Effort Point Total (số riêng biệt mỗi phần), KHÔNG được giả định thứ
+ * tự tìm thấy trên Blueprint khớp thứ tự trong .md.
+ * @returns {Promise<{url: string, effortPointTotal: number, timeWorkedCount: number}[]>}
+ */
+async function findExistingTicketUrls(page, title) {
+  const searchInput = assertReady(SEL.requirementList.searchInput, 'requirementList.searchInput', 'Bước 0');
+  await page.fill(searchInput, title);
+  await page.click(assertReady(SEL.requirementList.searchButton, 'requirementList.searchButton', 'Bước 0'));
+  await page.waitForLoadState('networkidle').catch(() => {});
+  await page.waitForTimeout(1500);
+
+  const rowLocator = page.locator(assertReady(SEL.requirementList.resultRowByText(title), 'requirementList.resultRowByText', 'Bước 0'));
+  const count = await rowLocator.count();
+  const results = [];
+  const context = page.context();
+  for (let i = 0; i < count; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    const newPagePromise = context.waitForEvent('page', { timeout: 15000 });
+    // eslint-disable-next-line no-await-in-loop
+    await rowLocator.nth(i).dblclick();
+    // eslint-disable-next-line no-await-in-loop
+    const newPage = await newPagePromise;
+    // eslint-disable-next-line no-await-in-loop
+    await newPage.waitForLoadState('networkidle').catch(() => {});
+    const url = newPage.url();
+    let totals = { effortPointTotal: 0, timeWorkedCount: 0 };
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await openJobDetailModal(newPage);
+      // eslint-disable-next-line no-await-in-loop
+      totals = await getJobDetailTotals(newPage);
+    } catch (err) {
+      // Không đọc được Job Detail (vd modal không mở) -> vẫn giữ URL, totals
+      // mặc định 0/0, bên gọi tự xử lý (thường sẽ không khớp expected nào).
+    }
+    results.push({ url, ...totals });
+    // eslint-disable-next-line no-await-in-loop
+    await newPage.close().catch(() => {});
+  }
+  return results;
+}
+
 // ---------- Bước 3: tab Effort Point ----------
 
 async function addEffortPoint(page, effortPoint) {
-  // ⚠️ ĐÃ XÁC NHẬN THẬT (2 ticket khác nhau, kể cả sau khi thêm 300ms chờ):
-  // click thường vào tab Effort Point NGAY sau khi Save dòng Time Worked
-  // cuối bị timeout TOÀN BỘ 30s — không phải chờ chưa đủ lâu, vì mở lại
-  // modal fresh để kiểm tra thì tab hoàn toàn bình thường (visible, đã
-  // selected, elementFromPoint đúng chính nó — không bị che). Nghi Playwright
-  // stability-check (so sánh vị trí qua nhiều animation frame) kẹt do hiệu
-  // ứng chuyển tab của Webix. `{ force: true }` bỏ qua toàn bộ actionability
-  // check (visible/stable/receives-events) — đã verify: luôn thành công
-  // ngay lập tức trong mọi lần thử, kể cả khi click thường treo đủ 30s.
+  // ⚠️ Click thường vào tab Effort Point ngay sau khi Save dòng Time Worked
+  // cuối bị timeout dù tab thực ra bình thường (visible, selected) — nghi do
+  // Playwright stability-check (so sánh vị trí qua nhiều frame) kẹt bởi hiệu
+  // ứng chuyển tab của Webix. Chờ 300ms cho Webix settle rồi mới click vẫn
+  // KHÔNG đủ (đã thử) — phải thêm `{ force: true }` để bỏ qua hẳn
+  // actionability check thì mới luôn thành công ngay lập tức; giữ cả 2 dòng
+  // (không phải 1 trong 2 là thừa).
   await page.waitForTimeout(300);
   await page.click(assertReady(SEL.jobDetailModal.effortPointTab, 'jobDetailModal.effortPointTab', 'Bước 3'), {
     force: true,
@@ -591,24 +686,18 @@ function hoursToHourMinute(hours) {
 
 async function addTimeWorkedRow(page, row) {
   const tw = SEL.jobDetailModal.timeWorked;
-  // ĐÃ XÁC NHẬN THẬT (chẩn đoán trực tiếp trên ticket #3636): bấm "New" NGAY
-  // sau khi click tab Time Worked (không chờ gì) là race condition — nút New
-  // đã visible/enabled về mặt DOM nhưng Webix chưa kịp gắn lại event handler
-  // sau khi chuyển tab, nên click "rơi" không có tác dụng, sub-form không bao
-  // giờ hiện ra (dẫn tới timeout ở bước chờ `phaseNameInput` phía dưới, cả 2
-  // lần thử — kể cả sau khi đóng/mở lại modal). Thêm 300ms chờ cho Webix
-  // settle xong sau khi chuyển tab là hết hẳn — verify bằng script chẩn đoán
-  // (không cần chờ mới THẬT xuất hiện tức thì sau khi bấm New).
+  // Bấm "New" ngay sau khi click tab Time Worked là race condition — nút đã
+  // visible/enabled về DOM nhưng Webix chưa kịp gắn lại event handler sau khi
+  // chuyển tab, khiến click rơi không tác dụng và sub-form không hiện ra.
+  // Thêm 300ms chờ Webix settle sau khi chuyển tab khắc phục triệt để.
   await page.click(assertReady(SEL.jobDetailModal.timeWorkedTab, 'jobDetailModal.timeWorkedTab', 'Bước 4'));
   await page.waitForTimeout(300);
   await page.click(assertReady(tw.newButton, 'jobDetailModal.timeWorked.newButton', 'Bước 4'));
   await page.waitForTimeout(300);
 
-  // ⚠️ Đôi khi bấm "New" xong form con KHÔNG hiện ra (lỗi render Webix — gặp
-  // thật khi theo dõi 1 batch chạy thật, ticket #2871: bảng Time Worked vẫn
-  // trống, không có ô nhập nào xuất hiện). Cách Huy xử lý thủ công khi gặp:
-  // ĐÓNG popup Job Detail rồi MỞ LẠI. Áp dụng y hệt ở đây — chỉ thử lại 1
-  // lần, nếu vẫn không được thì throw lỗi rõ ràng thay vì treo 30s vô ích.
+  // ⚠️ Đôi khi bấm "New" xong form con không hiện ra (lỗi render Webix) — xử
+  // lý bằng cách đóng popup Job Detail rồi mở lại, thử lại 1 lần; nếu vẫn
+  // không được thì throw lỗi rõ ràng thay vì treo 30s vô ích.
   const phaseNameInput = page.locator(
     assertReady(tw.phaseNameSelect, 'jobDetailModal.timeWorked.phaseNameSelect', 'Bước 4')
   );
@@ -692,11 +781,10 @@ async function addAllTimeWorked(page, timeWorkedRows) {
 // ---------- Bước 5: chỉnh lại Effort Point 100% vào phase Register ----------
 
 /**
- * Sau khi đã nhập xong Time Worked + Effort Point (Bước 3/4): hệ thống TỰ
- * ĐỘNG chia Effort Point cho 4 phase theo tỉ lệ ngày giữa các phase — SAI với
- * yêu cầu thực tế (Huy muốn dồn 100% vào Register). Hàm này đọc lại TỔNG điểm
- * thật từ UI (không hardcode), rồi chỉnh tay: Register = tổng, 3 phase còn
- * lại = 0. Đã xác nhận thật trên ticket #2823 (140 điểm: 7/14/112/7 -> 140/0/0/0).
+ * Sau khi nhập xong Time Worked + Effort Point: hệ thống tự động chia Effort
+ * Point cho 4 phase theo tỉ lệ ngày — sai với yêu cầu thực tế (muốn dồn 100%
+ * vào Register). Hàm này đọc lại tổng điểm thật từ UI (không hardcode) rồi
+ * chỉnh tay: Register = tổng, 3 phase còn lại = 0.
  */
 async function setAllEffortPointToRegister(page) {
   const split = SEL.ticketDetail.phaseSplit;
@@ -768,6 +856,7 @@ module.exports = {
   login,
   gotoRequirementList,
   selectProjectAndCategory,
+  selectAllStatuses,
   countExistingTicketsByTitle,
   openNewTaskForm,
   fillNewTaskForm,
@@ -776,6 +865,8 @@ module.exports = {
   openCreatedTicketInNewTab,
   setStatus,
   openJobDetailModal,
+  getJobDetailTotals,
+  findExistingTicketUrls,
   addEffortPoint,
   addAllEffortPoints,
   addAllTimeWorked,

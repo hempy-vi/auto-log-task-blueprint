@@ -13,11 +13,12 @@ const { parseMonthlyReport } = require('../src/parser');
 const { runBatch, printSummary } = require('../src/runner');
 
 const TICKET_TITLE = process.env.TICKET_TITLE;
-const REPORT_FILE = process.env.REPORT_FILE || './monthly-report/202607_monthly-report.md';
+const REPORT_FILE = process.env.REPORT_FILE || (process.env.MONTH && `./work-reports/${process.env.MONTH}_monthly-report.md`);
 if (!TICKET_TITLE) {
   console.error('Thiếu env TICKET_TITLE.');
   process.exit(1);
 }
+if (!REPORT_FILE) throw new Error('Thiếu REPORT_FILE hoặc MONTH trong .env.');
 
 function waitForEnter(promptText) {
   return new Promise((resolve) => {

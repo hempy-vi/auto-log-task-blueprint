@@ -37,19 +37,18 @@ const CONSTANTS = {
   loginUrl: 'https://blueprint.cyberlogitec.com.vn',
   requirementListUrl: 'https://blueprint.cyberlogitec.com.vn/UI_PIM_001',
 
-  // ⚠️ ĐÃ XÁC NHẬN (2026-08-29): trang Requirement có 4 project khả dụng
-  // (CAPA Management/ERP Maintenance/Factory Maintenance/WorkFlow); project
-  // ĐANG CHỌN quyết định cả luồng Phase (CAPA Management có 6 phase, khác
-  // hẳn 4 phase Register/Confirmation/Solving/Finish mà WORKFLOW.md dựa
-  // vào). Phải chủ động chọn đúng "ERP Maintenance" > "Logistics" trước khi
-  // tạo task — không để mặc định vì có thể đang là project khác.
+  // ⚠️ Trang Requirement có 4 project khả dụng (CAPA Management/ERP
+  // Maintenance/Factory Maintenance/WorkFlow); project đang chọn quyết định
+  // cả luồng Phase (CAPA Management có 6 phase, khác hẳn 4 phase
+  // Register/Confirmation/Solving/Finish mà WORKFLOW.md dựa vào). Phải chủ
+  // động chọn đúng "ERP Maintenance" > "Logistics" trước khi tạo task, không
+  // để mặc định.
   projectName: 'ERP Maintenance',
   categoryTreeName: 'Logistics',
 
-  // ⚠️ Theo yêu cầu của Huy (2026-08-29): 1 ticket KHÔNG được vượt quá Volume
-  // 100 (lý do nghiệp vụ phía Blueprint, KHÔNG phải lỗi tool phát hiện — khi
-  // test tự động nhập Volume=217 cho "P290 Import BOM from Excel", hệ thống
-  // vẫn nhận bình thường, không báo lỗi gì). Ticket nào vượt mức này bị
+  // ⚠️ 1 ticket không được vượt quá Volume 100 — giới hạn nghiệp vụ phía
+  // Blueprint, không phải lỗi tool phát hiện (hệ thống vẫn chấp nhận Volume
+  // lớn hơn mà không báo lỗi). Ticket vượt mức này bị
   // parser.splitOversizedTicket() tự tách thành nhiều ticket con cùng title.
   maxVolumePerTicket: 100,
 };

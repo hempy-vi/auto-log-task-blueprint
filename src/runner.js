@@ -20,6 +20,11 @@ async function runBatch(page, parsed, options) {
   // Bắt buộc chọn đúng Project "ERP Maintenance" > "Logistics" 1 lần trước
   // khi tạo bất kỳ task nào — project sai sẽ làm sai toàn bộ luồng Phase/PIC.
   await blueprint.selectProjectAndCategory(page);
+  // ⚠️ Bật hết filter trạng thái (mặc định bỏ sót "Finished") — thiếu bước
+  // này, mọi idempotency check theo title (countExistingTicketsByTitle) sẽ
+  // KHÔNG thấy được ticket cũ đã "Finished", dẫn tới nguy cơ tạo trùng ticket
+  // đã hoàn tất từ trước (phát hiện 2026-09-26 khi backfill tháng cũ).
+  await blueprint.selectAllStatuses(page);
 
   // ⚠️ Idempotency check theo SỐ LƯỢNG, không phải boolean — 1 ticket gốc có
   // Volume > 100 bị parser tự tách thành nhiều ticket con CÙNG title (xem
@@ -39,6 +44,68 @@ async function runBatch(page, parsed, options) {
       results.skipped.push({ ticket, reason: 'Không xác định được site (RELATED UI rỗng bất thường)' });
       // eslint-disable-next-line no-console
       console.warn(`${label} -> SKIP: thiếu site`);
+      continue;
+    }
+
+    // ⚠️ Ticket ĐÃ BIẾT URL thật (field BLUEPRINT: trong .md, xem
+    // src/parser.js) -> đi THẲNG vào URL đó, KHÔNG search/tạo mới — vừa
+    // nhanh hơn (bỏ hẳn bước search+idempotency-by-count), vừa đúng hơn
+    // (khỏi phụ thuộc title trùng khớp chính xác). Ticket dạng này rơi vào 1
+    // trong 3 trường hợp: (1) đã đầy đủ từ trước -> coi như thành công, không
+    // đụng gì; (2) tạo dở hoàn toàn trống (Submit ok nhưng lỗi giữa chừng
+    // trước khi kịp nhập Time Worked/Effort Point, xem case PRQ289 2026-09-25)
+    // -> tự điền nốt y hệt luồng tạo mới; (3) có dữ liệu nhưng KHÔNG khớp số
+    // mong đợi (đã nhập 1 phần không rõ ràng) -> KHÔNG tự động điền thêm (rủi
+    // ro trùng lặp dòng), báo cho người dùng tự kiểm tra tay.
+    if (ticket.blueprintUrl) {
+      let knownPage = null;
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        knownPage = await page.context().newPage();
+        // eslint-disable-next-line no-await-in-loop
+        await knownPage.goto(ticket.blueprintUrl);
+        // eslint-disable-next-line no-await-in-loop
+        await knownPage.waitForLoadState('networkidle').catch(() => {});
+        // eslint-disable-next-line no-await-in-loop
+        await blueprint.openJobDetailModal(knownPage);
+        // eslint-disable-next-line no-await-in-loop
+        const totals = await blueprint.getJobDetailTotals(knownPage);
+        const expectedEp = ticket.effortPoints.reduce((acc, ep) => acc + (ep.total || 0), 0);
+        const expectedTw = ticket.timeWorked.length;
+
+        if (totals.effortPointTotal >= expectedEp && totals.timeWorkedCount >= expectedTw) {
+          results.success.push({ ticket, url: ticket.blueprintUrl });
+          // eslint-disable-next-line no-console
+          console.log(`${label} -> OK (đã đầy đủ sẵn: ${ticket.blueprintUrl})`);
+        } else if (totals.effortPointTotal === 0 && totals.timeWorkedCount === 0) {
+          // eslint-disable-next-line no-await-in-loop
+          await blueprint.addAllTimeWorked(knownPage, ticket.timeWorked);
+          // eslint-disable-next-line no-await-in-loop
+          await blueprint.addAllEffortPoints(knownPage, ticket.effortPoints);
+          // eslint-disable-next-line no-await-in-loop
+          await blueprint.setAllEffortPointToRegister(knownPage);
+          results.success.push({ ticket, url: ticket.blueprintUrl });
+          // eslint-disable-next-line no-console
+          console.log(`${label} -> OK (đã hoàn tất ticket tạo dở: ${ticket.blueprintUrl})`);
+        } else {
+          results.skipped.push({
+            ticket,
+            reason: `Ticket đã tồn tại (${ticket.blueprintUrl}) nhưng dữ liệu KHÔNG khớp mong đợi (Effort Point ${totals.effortPointTotal}/${expectedEp}, Time Worked ${totals.timeWorkedCount}/${expectedTw} dòng) — có thể đã nhập 1 phần, cần kiểm tra tay, KHÔNG tự động điền thêm để tránh trùng lặp.`,
+          });
+          // eslint-disable-next-line no-console
+          console.warn(`${label} -> SKIP: dữ liệu không khớp mong đợi, cần kiểm tra tay (${ticket.blueprintUrl}).`);
+        }
+        // eslint-disable-next-line no-await-in-loop
+        await knownPage.close().catch(() => {});
+      } catch (err) {
+        if (knownPage && !knownPage.isClosed()) {
+          // eslint-disable-next-line no-await-in-loop
+          await knownPage.close().catch(() => {});
+        }
+        results.failed.push({ ticket, error: err.message, partialUrl: ticket.blueprintUrl });
+        // eslint-disable-next-line no-console
+        console.error(`${label} -> LỖI khi mở lại ticket đã biết URL (${ticket.blueprintUrl}): ${err.message}`);
+      }
       continue;
     }
 
@@ -72,9 +139,9 @@ async function runBatch(page, parsed, options) {
       // eslint-disable-next-line no-await-in-loop
       detailPage = await blueprint.openCreatedTicketInNewTab(page, ticket.title);
 
-      // Thứ tự CỐ Ý: Time Worked trước (Save không đóng popup, có thể bấm New
-      // thêm dòng khác), Effort Point sau cùng (theo yêu cầu của Huy — Save ở
-      // đây là hành động cuối, popup TỰ ĐỘNG đóng nên không cần đóng tay).
+      // Thứ tự cố ý: Time Worked trước (Save không đóng popup, có thể bấm New
+      // thêm dòng khác), Effort Point sau cùng (Save ở đây là hành động cuối,
+      // popup tự động đóng nên không cần đóng tay).
       // eslint-disable-next-line no-await-in-loop
       await blueprint.openJobDetailModal(detailPage);
       // eslint-disable-next-line no-await-in-loop
@@ -82,8 +149,8 @@ async function runBatch(page, parsed, options) {
       // eslint-disable-next-line no-await-in-loop
       await blueprint.addAllEffortPoints(detailPage, ticket.effortPoints);
 
-      // Bước 5 (MỚI): hệ thống tự chia Effort Point cho 4 phase theo tỉ lệ
-      // ngày — chỉnh tay lại 100% dồn vào Register theo yêu cầu của Huy.
+      // Bước 5: hệ thống tự chia Effort Point cho 4 phase theo tỉ lệ ngày —
+      // chỉnh tay lại 100% dồn vào Register.
       // eslint-disable-next-line no-await-in-loop
       await blueprint.setAllEffortPointToRegister(detailPage);
 
@@ -102,10 +169,9 @@ async function runBatch(page, parsed, options) {
     } catch (err) {
       // ⚠️ Nếu lỗi xảy ra SAU khi đã mở tab Detail (vd giữa lúc nhập Time
       // Worked/Effort Point), tab đó sẽ bị BỎ QUÊN (không rơi vào nhánh
-      // thành công nên không có lệnh close() nào chạy tới) — đã gặp thật:
-      // tích luỹ nhiều tab bỏ quên qua nhiều ticket lỗi liên tiếp là nghi
-      // phạm chính khiến cả trình duyệt bị crash giữa batch. Luôn dọn tab
-      // này trước khi xử lý tiếp, bất kể lỗi gì.
+      // thành công nên không có lệnh close() nào chạy tới) — tránh tích luỹ
+      // tab bỏ quên qua nhiều ticket lỗi liên tiếp. Luôn dọn tab này trước
+      // khi xử lý tiếp, bất kể lỗi gì.
       // ⚠️ Tab Detail đã mở nghĩa là submitNewTask() ĐÃ THÀNH CÔNG — ticket
       // "vỏ rỗng" này đã tồn tại thật trên Blueprint (search theo title thấy
       // ngay) dù chưa có Time Worked/Effort Point. Lưu lại URL TRƯỚC khi đóng
@@ -131,8 +197,8 @@ async function runBatch(page, parsed, options) {
       }
       if (page.isClosed()) {
         // Trình duyệt/tab chính đã chết hẳn — không còn gì để phục hồi, dừng
-        // cả batch luôn thay vì để TOÀN BỘ ticket còn lại lỗi dây chuyền vô
-        // nghĩa (đã gặp thật: 1 lần crash làm 20+ ticket sau đó lỗi liên tiếp).
+        // cả batch luôn thay vì để toàn bộ ticket còn lại lỗi dây chuyền vô
+        // nghĩa.
         // eslint-disable-next-line no-console
         console.error('Trình duyệt/tab chính đã bị đóng — dừng batch tại đây.');
         break;
@@ -153,6 +219,8 @@ async function runBatch(page, parsed, options) {
         await blueprint.gotoRequirementList(page);
         // eslint-disable-next-line no-await-in-loop
         await blueprint.selectProjectAndCategory(page);
+        // eslint-disable-next-line no-await-in-loop
+        await blueprint.selectAllStatuses(page);
       } catch (recoveryErr) {
         // eslint-disable-next-line no-console
         console.error(`Không phục hồi được trạng thái sạch sau lỗi (${recoveryErr.message}) — dừng batch tại đây để tránh ghi sai dữ liệu cho các ticket sau.`);
