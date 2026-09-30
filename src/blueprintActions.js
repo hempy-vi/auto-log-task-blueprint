@@ -589,18 +589,16 @@ async function findExistingTicketUrls(page, title) {
 
 // ---------- Bước 3: tab Effort Point ----------
 
-async function addEffortPoint(page, effortPoint) {
-  // ⚠️ Click thường vào tab Effort Point ngay sau khi Save dòng Time Worked
-  // cuối bị timeout dù tab thực ra bình thường (visible, selected) — nghi do
-  // Playwright stability-check (so sánh vị trí qua nhiều frame) kẹt bởi hiệu
-  // ứng chuyển tab của Webix. Chờ 300ms cho Webix settle rồi mới click vẫn
-  // KHÔNG đủ (đã thử) — phải thêm `{ force: true }` để bỏ qua hẳn
-  // actionability check thì mới luôn thành công ngay lập tức; giữ cả 2 dòng
-  // (không phải 1 trong 2 là thừa).
-  await page.waitForTimeout(300);
-  await page.click(assertReady(SEL.jobDetailModal.effortPointTab, 'jobDetailModal.effortPointTab', 'Bước 3'), {
-    force: true,
-  });
+/**
+ * Chọn Category + Job Details, chuyển sang bảng phải, gõ Volume — CHƯA bấm
+ * Save (xem `addAllEffortPoints` — Save ở tab này là hành động ĐÓNG/KẾT
+ * THÚC toàn bộ modal, khác hẳn Time Worked nơi Save không đóng popup, nên
+ * chỉ được gọi ĐÚNG 1 LẦN sau khi đã thêm hết mọi dòng, không phải sau mỗi
+ * dòng — bấm Save giữa chừng làm dòng kế tiếp "rơi" vào popup đã đóng/reset,
+ * đúng hiện tượng "đứng hình" quan sát được 2026-09-30 khi ticket có ≥2 dòng
+ * Effort Point).
+ */
+async function addEffortPointRow(page, effortPoint) {
   await page.click(
     assertReady(
       SEL.jobDetailModal.effortPoint.categoryListItem(effortPoint.category),
@@ -655,7 +653,22 @@ async function addEffortPoint(page, effortPoint) {
   await page.keyboard.type(String(effortPoint.volume));
   await page.keyboard.press('Enter');
   await page.waitForTimeout(300);
+}
 
+async function addAllEffortPoints(page, effortPoints) {
+  // ⚠️ Click tab Effort Point 1 LẦN duy nhất ở đây (không phải trong từng
+  // dòng) — xem race-condition ở comment addEffortPointRow gốc: chờ 300ms +
+  // `{ force: true }` cần thiết ngay sau khi Save dòng Time Worked cuối.
+  await page.waitForTimeout(300);
+  await page.click(assertReady(SEL.jobDetailModal.effortPointTab, 'jobDetailModal.effortPointTab', 'Bước 3'), {
+    force: true,
+  });
+  for (const ep of effortPoints) {
+    // eslint-disable-next-line no-await-in-loop
+    await addEffortPointRow(page, ep);
+  }
+  // Save ĐÚNG 1 LẦN sau khi đã thêm hết mọi dòng vào bảng phải — Save ở tab
+  // này là hành động ĐÓNG/KẾT THÚC (khác Time Worked, Save không đóng popup).
   await page.click(assertReady(SEL.jobDetailModal.effortPoint.saveButton, 'jobDetailModal.effortPoint.saveButton', 'Bước 3'));
   // ⚠️ Chưa có toast/selector xác nhận Save Effort Point đã được test thật
   // (khác Time Worked, nơi có toast "Saved successfully" rõ ràng để chờ) —
@@ -663,13 +676,6 @@ async function addEffortPoint(page, effortPoint) {
   // (setAllEffortPointToRegister) đọc tổng điểm TRƯỚC KHI server ghi xong.
   await page.waitForLoadState('networkidle').catch(() => {});
   await page.waitForTimeout(300);
-}
-
-async function addAllEffortPoints(page, effortPoints) {
-  for (const ep of effortPoints) {
-    // eslint-disable-next-line no-await-in-loop
-    await addEffortPoint(page, ep);
-  }
 }
 
 // ---------- Bước 4: tab Time Worked ----------
@@ -796,7 +802,7 @@ async function setAllEffortPointToRegister(page) {
   // Đọc số phase + tổng điểm THẬT từ UI, thử lại vài lần trước khi kết luận
   // sai — ngay sau khi bấm mũi tên chuyển panel, hoặc ngay sau khi Save Effort
   // Point (chưa có toast xác nhận đáng tin cậy cho bước đó, xem ghi chú ở
-  // addEffortPoint), có thể panel/server CHƯA kịp render/phản ánh xong, khiến
+  // addAllEffortPoints), có thể panel/server CHƯA kịp render/phản ánh xong, khiến
   // count đọc được tạm thời khác 4 hoặc total tạm thời là 0 dù không có gì sai
   // thật sự. Chỉ kết luận lỗi thật (dừng hẳn, KHÔNG ghi gì) sau khi thử lại
   // nhiều lần vẫn vậy — để tránh vừa báo lỗi giả (count) vừa ghi đè 0/0/0/0
@@ -867,7 +873,7 @@ module.exports = {
   openJobDetailModal,
   getJobDetailTotals,
   findExistingTicketUrls,
-  addEffortPoint,
+  addEffortPointRow,
   addAllEffortPoints,
   addAllTimeWorked,
   hoursToHourMinute,

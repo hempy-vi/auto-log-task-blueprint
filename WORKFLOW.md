@@ -302,12 +302,19 @@ transfer) — selector thật ở `src/selectors.js` → `jobDetailModal.effortP
    để xác nhận. Để xác định đúng ô khi có nhiều dòng, lấy `aria-rowindex` từ
    ô tên ở cột 1 (`resultRowNameCell`) rồi ghép với cột Volume
    (`aria-colindex="3"`) cùng `aria-rowindex` đó. Đã implement trong
-   `addEffortPoint()`.
+   `addEffortPointRow()`.
 5. Hệ thống tự tính `Total = Unit Point × Volume`, cộng dồn vào
    `view_id="totalPoint"` (label "Total: X" ở chân modal) và badge EFFORT
    POINT trên header ticket.
-6. Bấm **Save** (`view_id="btnSaveEffortPoint"`). Lặp lại từ bước 1 nếu
-   ticket có nhiều dòng Effort Point.
+6. ⚠️ **Save (`view_id="btnSaveEffortPoint"`) là hành động ĐÓNG/KẾT THÚC**,
+   KHÁC hẳn Time Worked (Save ở đó không đóng popup, có thể bấm New tiếp) —
+   xác nhận qua bug thật 2026-09-30: bấm Save sau MỖI dòng rồi lặp lại bước
+   1-5 cho dòng kế tiếp làm ticket "đứng hình" (dòng 2 chọn Category/Job
+   Details rơi vào popup đã đóng/reset, chỉ tiếp tục được nếu người dùng tự
+   tay mở lại popup). Đúng: lặp lại bước 1-4 cho **MỌI dòng Effort Point
+   trước** (thêm hết vào bảng phải), rồi mới bấm Save **ĐÚNG 1 LẦN** sau
+   cùng — xem `addAllEffortPoints()` (gọi `addEffortPointRow()` trong vòng
+   lặp, Save nằm ngoài vòng lặp).
 7. Sau khi lưu, Activity log ghi thêm mục "ADDED POINT: <Category> / <Job
    Details> <Total>" — có thể dùng để verify thay vì chỉ chờ toast.
 
