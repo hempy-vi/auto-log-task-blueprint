@@ -44,15 +44,12 @@ Chromium cho Playwright, tự tạo `.env` từ `.env.example` nếu chưa có. 
 ## Chạy (Windows — nhanh)
 
 ```
-run.bat work-reports\202607_monthly-report.md
-```
-
-Hoặc không cần truyền gì cả — đặt `MONTH=202609` (ví dụ) trong `.env`, tool tự
-suy ra file `work-reports\202609_monthly-report.md`:
-
-```
 run.bat
 ```
+
+Không cần truyền tham số hay đặt biến `.env` nào để chọn tháng — trang xem
+trước tự quét toàn bộ `work-reports/*_monthly-report.md` và cho chọn
+Năm/Tháng ngay trong trình duyệt (xem bước 2 bên dưới).
 
 `run.bat` **luôn chạy ẩn hoàn toàn** (không cửa sổ cmd nào hiện ra, kể cả
 thoáng qua) — tự relaunch chính nó qua `run-hidden.vbs` rồi thoát ngay lập
@@ -99,7 +96,7 @@ monthly-report để phát hiện sớm title trùng lặp, sai site/job type, v
 trước khi đụng tới trình duyệt thật.
 
 ```
-node index.js --report ./work-reports/202607_monthly-report.md
+node index.js
 ```
 
 - Due Date: KHÔNG cần truyền gì — mỗi ticket dùng nguyên giá trị MẶC ĐỊNH mà
@@ -113,6 +110,10 @@ node index.js --report ./work-reports/202607_monthly-report.md
   phải chỉ bỏ qua 1 ticket) — kể cả khi ticket đó đã tạo + nhập Time
   Worked/Effort Point thành công trên production trước đó (bị ghi nhận nhầm
   thành "lỗi" trong tổng kết). Xem WORKFLOW.md mục 4.
+- ⚠️ `--report <path>` **chỉ có tác dụng với `--dry-run`** (chọn đúng 1 file
+  để debug nhanh) — luồng chạy thật LUÔN quét toàn bộ `work-reports/` và cho
+  chọn Năm/Tháng trong trang xem trước, không có cách nào ép sẵn 1 tháng cụ
+  thể qua CLI/`.env` nữa (đã bỏ biến `MONTH` vì dư thừa với picker).
 
 Trình duyệt mở lên, hiện **trang xem trước** danh sách ticket kèm 2 nút Xác
 nhận/Huỷ (xem mục "Chạy (Windows — nhanh)" ở trên — hành vi giống hệt dù chạy

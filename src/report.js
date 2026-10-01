@@ -810,7 +810,7 @@ function writeErrorHtml(message, outPath) {
     <div class="badge"><span class="dot"></span> Không đọc/parse được file báo cáo</div>
     <h1>Không thể mở trang xem trước</h1>
     <div class="panel">${escapeHtml(message)}</div>
-    <div class="hint">Sửa lại file/biến MONTH rồi chạy lại run.bat. Đóng cửa sổ này khi đã xem xong.</div>
+    <div class="hint">Kiểm tra lại thư mục work-reports/ rồi chạy lại run.bat. Đóng cửa sổ này khi đã xem xong.</div>
     <footer>Auto Log Task Blueprint — Copyright &copy; ${new Date().getFullYear()} by <b>Hempy</b></footer>
   </div>
 </body>

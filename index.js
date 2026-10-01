@@ -99,18 +99,19 @@ function parseArgs(argv) {
   return args;
 }
 
-// Không truyền --report -> bắt buộc phải có MONTH trong .env để suy ra file
-// (work-reports/<MONTH>_monthly-report.md) — thiếu cả 2 phải báo lỗi rõ
-// ràng, không được âm thầm suy đoán ra 1 tháng cũ. Dùng cho --dry-run (chỉ
-// đọc/parse 1 file cụ thể, không qua trang chọn năm/tháng).
+// Không truyền --report -> mặc định lấy tháng GẦN NHẤT có sẵn trong
+// work-reports/ (cùng quy tắc "mặc định" với trang chọn Năm/Tháng ở luồng
+// thật, xem writeReviewHtml) — dùng cho --dry-run (chỉ đọc/parse 1 file cụ
+// thể để debug nhanh, không qua trang chọn năm/tháng).
 function resolveReportPath(args) {
   if (args.report) return path.resolve(args.report);
-  if (!process.env.MONTH) {
+  const available = scanAvailableMonths();
+  if (available.length === 0) {
     throw new Error(
-      'Thiếu --report và không có MONTH trong .env — truyền đường dẫn file (--report work-reports\\202609_monthly-report.md), hoặc đặt MONTH=202609 (ví dụ) trong .env rồi chạy lại.'
+      'Thiếu --report và không tìm thấy file nào dạng work-reports/<yyyymm>_monthly-report.md — truyền đường dẫn file (--report work-reports\\202609_monthly-report.md) hoặc tạo file báo cáo trước.'
     );
   }
-  return path.resolve(__dirname, 'work-reports', `${process.env.MONTH}_monthly-report.md`);
+  return available[available.length - 1].mdPath;
 }
 
 // Quét TOÀN BỘ work-reports/*_monthly-report.md để trang xem trước cho chọn
@@ -276,7 +277,6 @@ async function main() {
             : `Tìm thấy ${available.length} file nhưng KHÔNG file nào parse được — xem log phía trên.`
         )
       : null;
-  const defaultMonth = process.env.MONTH && monthsData.some((m) => m.month === process.env.MONTH) ? process.env.MONTH : undefined;
 
   const { chromium } = require('playwright');
   const browser = await chromium.launch({
@@ -338,8 +338,7 @@ async function main() {
     if (process.platform === 'win32') forceShowBrowserWindow(); // ép hiện lại lần nữa cho chắc, phòng bị ẩn lại giữa chừng
     const reviewPath = writeReviewHtml(
       monthsData.map(({ month, parsed }) => ({ month, parsed })),
-      path.resolve(__dirname, 'reports', 'review-last.html'),
-      defaultMonth
+      path.resolve(__dirname, 'reports', 'review-last.html')
     );
     await page.goto(`file:///${reviewPath.replace(/\\/g, '/')}`);
     const decision = await waitForReviewDecision(page);

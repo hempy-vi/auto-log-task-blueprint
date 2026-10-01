@@ -10,17 +10,12 @@ exit /b
 
 :body
 rem Chay AN thuc su (goi lai qua run-hidden.vbs, tham so dau la "/HIDDEN").
-rem Khong truyen duong dan file -> de trong REPORT, node se tu doc MONTH
-rem trong .env de suy ra file; loi (thieu ca --report lan MONTH, parse loi...)
-rem se duoc ghi vao logs\run-last.log thay vi hien ra console (khong con
-rem console nao de hien ca).
+rem Khong can truyen duong dan file/thang gi nua - trang xem truoc tu quet
+rem het work-reports/*_monthly-report.md va cho chon Nam/Thang ngay trong
+rem trinh duyet (xem index.js + src/report.js). Loi (vd khong tim thay file
+rem nao) se duoc ghi vao logs\run-last.log thay vi hien ra console (khong
+rem con console nao de hien ca).
 set "SCRIPT_DIR=%~dp0"
-set "REPORT="
-if not "%~2"=="" set "REPORT=%~f2"
 cd /d "%SCRIPT_DIR%"
 if not exist logs mkdir logs
-if "%REPORT%"=="" (
-  node index.js > logs\run-last.log 2>&1
-) else (
-  node index.js --report "%REPORT%" > logs\run-last.log 2>&1
-)
+node index.js > logs\run-last.log 2>&1
